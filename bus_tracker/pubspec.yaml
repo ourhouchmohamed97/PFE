@@ -28,7 +28,7 @@ dependencies:
    # Make sure this is compatible with firebase_core ^3.x.x
   google_sign_in: ^6.2.2
   firebase_storage: ^12.4.3
-  image_picker: ^1.1.2
+  image_picker: ^1.1.2 #for the image
   share_plus: ^10.1.4
 
 
