@@ -3,6 +3,12 @@
         android:label="bus_tracker"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+         <!--add Google Maps API key key-->
+          <meta-data
+            android:name="com.google.android.geo.API_KEY"
+            android:value="AIzaSyCIK2gK5DkvhUcEPohlMPi0piSoFR9BN58"/>
+
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

@@ -40,6 +40,8 @@ void registerUser() async {
       'name': _nameController.text,
       'email': _emailController.text,
       'password': _passwordController.text,
+      'phone':'',
+      'profilePic':'',
       'emailVerified': false,
     });
 

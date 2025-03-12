@@ -4,6 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:bus_tracker/pages/login.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+
 class ViewBuses extends StatefulWidget {
   const ViewBuses({super.key});
 
@@ -13,6 +15,12 @@ class ViewBuses extends StatefulWidget {
 
 class _ViewBusesState extends State<ViewBuses> {
   String userName = "Loading..."; // Default text before fetching data
+  late GoogleMapController mapController;
+  final LatLng _initialPosition = const LatLng(35.5713, -5.3724);
+
+  void _onMapCreated(GoogleMapController controller) {
+    mapController = controller;
+  }
 
   @override
   void initState() {
@@ -21,40 +29,37 @@ class _ViewBusesState extends State<ViewBuses> {
   }
 
   Future<void> _fetchUserName() async {
-  try {
-    User? user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      setState(() => userName = "Guest");
-      return;
-    }
-
-    // Use email as the document ID
-    String email = user.email ?? "";
-    if (email.isEmpty) {
-      setState(() => userName = "No Email Found");
-      return;
-    }
-
-    DocumentSnapshot userDoc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(email)
-        .get();
-
-    if (userDoc.exists) {
-      Map<String, dynamic>? data = userDoc.data() as Map<String, dynamic>?;
-      if (data != null && data.containsKey('name')) {
-        setState(() => userName = data['name'] ?? "No Name");
-      } else {
-        setState(() => userName = "Name not available");
+    try {
+      User? user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        setState(() => userName = "Guest");
+        return;
       }
-    } else {
-      setState(() => userName = "Enter your name");
+
+      String email = user.email ?? "";
+      if (email.isEmpty) {
+        setState(() => userName = "No Email Found");
+        return;
+      }
+
+      DocumentSnapshot userDoc =
+          await FirebaseFirestore.instance.collection('users').doc(email).get();
+
+      if (userDoc.exists) {
+        Map<String, dynamic>? data = userDoc.data() as Map<String, dynamic>?;
+        if (data != null && data.containsKey('name')) {
+          setState(() => userName = data['name'] ?? "No Name");
+        } else {
+          setState(() => userName = "Name not available");
+        }
+      } else {
+        setState(() => userName = "Enter your name");
+      }
+    } catch (e) {
+      print("Error fetching user name: $e");
+      setState(() => userName = "Error Loading");
     }
-  } catch (e) {
-    print("Error fetching user name: $e");
-    setState(() => userName = "Error Loading");
   }
-}
 
   @override
   Widget build(BuildContext context) {
@@ -85,12 +90,12 @@ class _ViewBusesState extends State<ViewBuses> {
                       ),
                       TextButton(
                         onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => const ProfilePage()),
-                        );
-                      },
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => const ProfilePage()),
+                          );
+                        },
                         child: const Text(
                           'View Profile',
                           style: TextStyle(color: Colors.grey, fontSize: 14),
@@ -182,7 +187,13 @@ class _ViewBusesState extends State<ViewBuses> {
       body: Stack(
         children: [
           Positioned.fill(
-            child: Image.asset('assets/images/bg.png', fit: BoxFit.cover),
+            child: GoogleMap(
+              onMapCreated: _onMapCreated,
+              initialCameraPosition: CameraPosition(
+                target: _initialPosition,
+                zoom: 14.0,
+              ),
+            ),
           ),
           Column(
             children: [
@@ -200,11 +211,6 @@ class _ViewBusesState extends State<ViewBuses> {
                         ),
                         onPressed: () => Scaffold.of(context).openDrawer(),
                       ),
-                    ),
-                    const Text(
-                      'Nearby Bus Stops',
-                      style:
-                          TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(width: 40),
                   ],
@@ -263,7 +269,7 @@ class _ViewBusesState extends State<ViewBuses> {
                       onPressed: () {
                         Share.share(
                           'Check out this awesome bus tracking app!',
-                          subject: 'Bus Tracker App',                          
+                          subject: 'Bus Tracker App',
                         );
                       },
                     ),

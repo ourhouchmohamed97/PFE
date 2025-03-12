@@ -30,6 +30,7 @@ dependencies:
   firebase_storage: ^12.4.3
   image_picker: ^1.1.2 #for the image
   share_plus: ^10.1.4
+  google_maps_flutter: ^2.10.1
 
 
 dev_dependencies:
