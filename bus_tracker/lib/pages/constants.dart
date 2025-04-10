@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 // COLORS :
-const Color yellowColor = Color.fromRGBO(255, 223, 0, 1); // Replace with your actual color
+const Color yellowColor = Color.fromRGBO(0, 86, 210, 1);
 
 
 // FONTS :
@@ -30,7 +30,7 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
     super.key,
     required this.title,
     this.onBackPressed,
-    this.backgroundColor = const Color(0xFFFFDF00),
+    this.backgroundColor = const Color.fromRGBO(0, 86, 210, 1),
     this.titleTextStyle,
     this.showLogoutButton = false,
     this.onLogoutPressed,

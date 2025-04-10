@@ -143,7 +143,7 @@ class _ViewBusesState extends State<ViewBuses> {
                 ],
               ),
             ),
-            Image.asset('assets/images/bus.png', width: 100, height: 100),
+            Image.asset('assets/images/darkCar.png', width: 100, height: 100),
             const SizedBox(height: 30),
             Container(
               padding: const EdgeInsets.all(16),
@@ -157,7 +157,7 @@ class _ViewBusesState extends State<ViewBuses> {
                   );
                 },
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color.fromRGBO(255, 223, 0, 1),
+                  backgroundColor: const Color.fromRGBO(0, 86, 210, 1),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -238,7 +238,7 @@ class _ViewBusesState extends State<ViewBuses> {
                 padding: const EdgeInsets.symmetric(vertical: 10),
                 margin: const EdgeInsets.only(bottom: 20),
                 decoration: BoxDecoration(
-                  color: const Color.fromRGBO(255, 223, 0, 1),
+                  color: const Color.fromRGBO(0, 86, 210, 1),
                   borderRadius: BorderRadius.circular(30),
                 ),
                 child: Row(
