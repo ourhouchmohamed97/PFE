@@ -125,7 +125,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
           ElevatedButton(
             onPressed: checkEmailVerification,
             style: ElevatedButton.styleFrom(
-              backgroundColor: yellowColor,
+              backgroundColor: blueColor,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(13),
               ),

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 // COLORS :
-const Color yellowColor = Color.fromRGBO(0, 86, 210, 1);
+const Color blueColor = Color.fromRGBO(0, 86, 210, 1);
 
 
 // FONTS :
@@ -83,7 +83,7 @@ Widget BackgroundWidget({List<Widget> children = const []}) {
               width: 146,
               height: 146,
               decoration: BoxDecoration(
-                color: yellowColor,
+                color: blueColor,
                 borderRadius: BorderRadius.circular(17),
               ),
               child: Padding(
@@ -119,7 +119,7 @@ class CustomBottomBar extends StatelessWidget {
       child: Container(
         height: 68,
         width: double.infinity,
-        color: yellowColor, // Customize the color if needed
+        color: blueColor, // Customize the color if needed
         alignment: Alignment.center,
         child: Text(
           text,
@@ -147,7 +147,7 @@ class Mybutton extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 10), // Adjusted padding
         margin: const EdgeInsets.symmetric(horizontal: 20),
         decoration: BoxDecoration(
-          color: yellowColor,
+          color: blueColor,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Center(

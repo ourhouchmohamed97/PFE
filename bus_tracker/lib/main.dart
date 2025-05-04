@@ -1,4 +1,5 @@
-import 'package:bus_tracker/pages/homepage.dart';
+// import 'package:bus_tracker/pages/homepage.dart';
+import 'package:bus_tracker/pages/homev2.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'firebase_options.dart';
@@ -18,11 +19,12 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'Flutter App',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const Homepage(),
+      home: const ActiveVehiclesPage(),
     );
   }
 }
