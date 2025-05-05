@@ -189,7 +189,7 @@ class _ProfilePageState extends State<ProfilePage> {
           "Edit Profile",
           style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
         ),
-        backgroundColor: const Color.fromRGBO(255, 223, 0, 1),
+        backgroundColor: const Color.fromRGBO(0, 86, 210, 1),
         elevation: 0,
         actions: [
           IconButton(
@@ -203,7 +203,7 @@ class _ProfilePageState extends State<ProfilePage> {
           children: [
             Container(
               height: 120,
-              color: const Color.fromRGBO(255, 223, 0, 1),
+              color: const Color.fromRGBO(0, 86, 210, 1),
             ),
             Transform.translate(
               offset: const Offset(0, -60),
@@ -266,7 +266,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           child: ElevatedButton(
                             onPressed: _showPasswordDialog,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color.fromRGBO(255, 223, 0, 1),
+                              backgroundColor: const Color.fromRGBO(0, 86, 210, 1),
                               foregroundColor: Colors.black,
                               elevation: 0,
                               shape: RoundedRectangleBorder(

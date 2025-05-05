@@ -92,7 +92,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Image.asset(
-            'assets/images/bus.png',
+            'assets/images/darkCar.png',
             width: 100,
             height: 100,
             fit: BoxFit.contain,
@@ -125,7 +125,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
           ElevatedButton(
             onPressed: checkEmailVerification,
             style: ElevatedButton.styleFrom(
-              backgroundColor: yellowColor,
+              backgroundColor: blueColor,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(13),
               ),

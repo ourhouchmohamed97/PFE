@@ -47,11 +47,11 @@ class Welcome extends StatelessWidget {
                     width: 146,
                     height: 146,
                     decoration: BoxDecoration(
-                      color: const Color.fromRGBO(255, 223, 0, 1),
+                      color: const Color.fromRGBO(0, 86, 210, 1),
                       borderRadius: BorderRadius.circular(17),
                     ),
                     child: Image.asset(
-                      'assets/images/bus.png', // Replace with your bus image asset
+                      'assets/images/whiteCar.png', // Replace with your bus image asset
                       width: 111,
                       height: 111,
                     ),
@@ -63,7 +63,7 @@ class Welcome extends StatelessWidget {
                   const Padding(
                     padding: EdgeInsets.all(15.0),
                     child: Text(
-                      'BusTrack',
+                      'CarTrack',
                       style:
                           TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                     ),
