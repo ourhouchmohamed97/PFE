@@ -9,7 +9,7 @@ class BusListPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: yellowColor,
+        backgroundColor: blueColor,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black), // Arrow icon
           onPressed: () {
@@ -139,7 +139,7 @@ class BusListPage extends StatelessWidget {
                     // Navigate to the route creation screen
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: yellowColor,
+                    backgroundColor: blueColor,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),

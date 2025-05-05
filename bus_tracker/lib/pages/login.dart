@@ -1,6 +1,6 @@
 import 'package:bus_tracker/pages/creatAccount.dart';
 import 'package:bus_tracker/pages/forgotPasswordPage.dart';
-import 'package:bus_tracker/pages/view_buses.dart';
+import 'package:bus_tracker/pages/homev2.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:bus_tracker/pages/services/google_auth.dart';
@@ -48,7 +48,7 @@ class _LoginPageState extends State<LoginPage> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => const ViewBuses(), // Replace with your "view buses" page
+          builder: (context) => const ActiveVehiclesPage(), // Replace with your "view buses" page
         ),
       );
     } else {
@@ -131,7 +131,7 @@ class _LoginPageState extends State<LoginPage> {
                 children: [
                   const SizedBox(height: 10),
                   Image.asset(
-                    'assets/images/bus.png',
+                    'assets/images/darkCar.png',
                     height: 80,
                   ),
                   const SizedBox(height: 10),
