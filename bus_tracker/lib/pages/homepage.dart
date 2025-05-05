@@ -61,11 +61,11 @@ class _HomepageState extends State<Homepage> {
                     width: 146,
                     height: 146,
                     decoration: BoxDecoration(
-                      color: const Color.fromRGBO(255, 223, 0, 1),
+                      color: const Color.fromRGBO(0, 86, 210, 1),
                       borderRadius: BorderRadius.circular(17),
                     ),
                     child: Image.asset(
-                      'assets/images/bus.png',
+                      'assets/images/whiteCar.png',
                       width: 111,
                       height: 111,
                     ),
@@ -77,7 +77,7 @@ class _HomepageState extends State<Homepage> {
                   const Padding(
                     padding: EdgeInsets.all(15.0),
                     child: Text(
-                      'BusTrack',
+                      'CarTrack',
                       style:
                           TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                     ),
