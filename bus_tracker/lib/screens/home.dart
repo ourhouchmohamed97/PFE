@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:bus_tracker/pages/profile.dart';
-import 'package:bus_tracker/pages/checkLocation.dart';
+import 'package:bus_tracker/screens/profile.dart';
+import 'package:bus_tracker/utils/checkLocation.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
