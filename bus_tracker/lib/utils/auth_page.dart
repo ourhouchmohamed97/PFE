@@ -1,5 +1,5 @@
-import 'package:bus_tracker/pages/login.dart';
-import 'package:bus_tracker/pages/view_buses.dart';
+import 'package:bus_tracker/screens/home.dart';
+import 'package:bus_tracker/screens/d_login_Page.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 class AuthPage extends StatelessWidget {
@@ -11,7 +11,7 @@ class AuthPage extends StatelessWidget {
       body: StreamBuilder(stream: FirebaseAuth.instance.authStateChanges() , 
       builder:(context, snapshot){
         if (snapshot.hasData ){
-          return ViewBuses();
+          return ActiveVehiclesPage();
         }
 
         else{

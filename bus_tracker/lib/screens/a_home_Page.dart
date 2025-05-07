@@ -1,15 +1,29 @@
-import 'package:bus_tracker/pages/auth_page.dart';
-import 'package:bus_tracker/pages/constants.dart';
-// import 'package:bus_tracker/pages/login.dart';
-import 'package:bus_tracker/pages/creatAccount.dart';
-// import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-// Import the next page
+import 'package:bus_tracker/screens/b_welcome_Page.dart';
 
-class Welcome extends StatelessWidget {
-  const Welcome({super.key});
+class Homepage extends StatefulWidget {
+  const Homepage({super.key});
 
   @override
+  // ignore: library_private_types_in_public_api
+  _HomepageState createState() => _HomepageState();
+}
+
+class _HomepageState extends State<Homepage> {
+  @override
+  void initState() {
+    super.initState();
+    // Navigate to the Welcome page after 4 seconds
+    Future.delayed(const Duration(seconds: 4), () {
+      Navigator.pushReplacement(
+        // ignore: use_build_context_synchronously
+        context,
+        MaterialPageRoute(builder: (context) => const Welcome()),
+      );
+    });
+  }
+
+ @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
@@ -51,7 +65,7 @@ class Welcome extends StatelessWidget {
                       borderRadius: BorderRadius.circular(17),
                     ),
                     child: Image.asset(
-                      'assets/images/whiteCar.png', // Replace with your bus image asset
+                      'assets/images/whiteCar.png',
                       width: 111,
                       height: 111,
                     ),
@@ -68,40 +82,15 @@ class Welcome extends StatelessWidget {
                           TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                     ),
                   ),
-
-                  const SizedBox(height: 180),
-                  TextButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) => CreateAccount()),
-                        );
-                      },
-                    
-                        child: const Text("Create Account",
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black,
-                              decoration: TextDecoration.underline,
-                            )),
-                      ),
+            
                 ],
               ),
             ),
           ],
-        ),
-      ),
-      bottomNavigationBar: CustomBottomBar(
-        text: 'Sign Up',
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) =>  const AuthPage()),
-          );
-        },
-      ),
+        )
+      )
     );
   }
 }
+     
+     

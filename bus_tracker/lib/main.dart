@@ -1,8 +1,9 @@
-// import 'package:bus_tracker/pages/homepage.dart';
-import 'package:bus_tracker/pages/homev2.dart';
+import 'package:bus_tracker/screens/a_home_Page.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/material.dart';
 import 'firebase_options.dart';
+import 'package:flutter/material.dart';
+
+
 
 
 void main() async {
@@ -24,7 +25,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      home: const ActiveVehiclesPage(),
+      home:  const Homepage(),
     );
   }
 }
