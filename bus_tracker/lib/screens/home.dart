@@ -1,3 +1,4 @@
+import 'package:bus_tracker/screens/add_vehicle.dart';
 import 'package:flutter/material.dart';
 import 'package:bus_tracker/screens/profile.dart';
 import 'package:bus_tracker/utils/checkLocation.dart';
@@ -137,7 +138,7 @@ class _ActiveVehiclesPageState extends State<ActiveVehiclesPage> {
                   ),
                   Positioned(
                     bottom: 16,
-                    right: 16,
+                    left: 16,
                     child: FloatingActionButton(
                       onPressed: _getCurrentLocation,
                       backgroundColor: Colors.white,
@@ -180,14 +181,20 @@ class _ActiveVehiclesPageState extends State<ActiveVehiclesPage> {
                         child: Padding(
                           padding: const EdgeInsets.symmetric(horizontal: 8.0),
                           child: ElevatedButton.icon(
-                            onPressed: () {},
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (context) => const AddCarPage()),
+                              );
+                            },
                             icon: const Icon(Icons.add, color: Colors.white),
                             label: const Text('Add Vehicle'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.blue,
                               minimumSize: const Size(160, 60),
-                              textStyle:
-                                  const TextStyle(color: Colors.white, fontSize: 16),
+                              textStyle: const TextStyle(
+                                  color: Colors.white, fontSize: 16),
                               foregroundColor: Colors.white,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
@@ -206,8 +213,8 @@ class _ActiveVehiclesPageState extends State<ActiveVehiclesPage> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.black,
                               minimumSize: const Size(160, 60),
-                              textStyle:
-                                  const TextStyle(color: Colors.white, fontSize: 16),
+                              textStyle: const TextStyle(
+                                  color: Colors.white, fontSize: 16),
                               foregroundColor: Colors.white,
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(12),
