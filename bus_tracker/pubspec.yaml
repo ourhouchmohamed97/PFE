@@ -33,6 +33,8 @@ dependencies:
   google_maps_flutter: ^2.10.1
   geolocator: ^14.0.0 # for location
   google_fonts: ^6.2.1 # font style
+  dotted_border: ^2.0.0
+  path: ^1.8.3 
 
 
 dev_dependencies:
