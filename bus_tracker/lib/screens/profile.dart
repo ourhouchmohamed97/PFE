@@ -1,3 +1,4 @@
+import 'package:bus_tracker/models/UserModel.dart';
 import 'package:bus_tracker/screens/d_login_Page.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -36,13 +37,14 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Future<void> _loadUserData() async {
     if (user != null) {
-      var userData = await _firestore.collection('users').doc(user!.uid).get();
-      if (userData.exists) {
+      var doc = await _firestore.collection('users').doc(user!.uid).get();
+      if (doc.exists) {
+        UserModel currentUser = UserModel.fromMap(doc.data()!, user!.uid);
         setState(() {
-          usernameController.text = userData['name'];
-          emailController.text = userData['email'];
-          phoneController.text = userData['phone'] ?? '';
-          imageUrl = userData['profilePic'] ?? "";
+          usernameController.text = currentUser.name;
+          emailController.text = currentUser.email;
+          phoneController.text = currentUser.phone ?? '';
+          imageUrl = currentUser.profilePic ?? "";
         });
       }
     }
@@ -56,12 +58,15 @@ class _ProfilePageState extends State<ProfilePage> {
       });
 
       // Upload the new image to Firebase Storage
+      if (!mounted) return;
       try {
         setState(() {
           isLoading = true;
         });
 
-        Reference storageRef = FirebaseStorage.instance.ref().child('profile_pictures/${user!.uid}.jpg');
+        Reference storageRef = FirebaseStorage.instance
+            .ref()
+            .child('profile_pictures/${user!.uid}.jpg');
         await storageRef.putFile(_imageFile!);
 
         String uploadedImageUrl = await storageRef.getDownloadURL();
@@ -77,7 +82,8 @@ class _ProfilePageState extends State<ProfilePage> {
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Profile picture updated successfully!")),
+          const SnackBar(
+              content: Text("Profile picture updated successfully!")),
         );
       } catch (e) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -91,55 +97,73 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  Future<void> _updateProfile(String password) async {
+  Future<void> _updateProfile(String currentPassword) async {
     try {
       setState(() {
         isLoading = true;
       });
 
-      // Reauthenticate the user if updating the password
-      AuthCredential credential = EmailAuthProvider.credential(
+      // Reauthenticate the user
+      final credential = EmailAuthProvider.credential(
         email: user!.email!,
-        password: password,
+        password: currentPassword,
       );
       await user!.reauthenticateWithCredential(credential);
 
-      String? uploadedImageUrl;
+      // Upload profile image if a new one is selected
+      String finalImageUrl = imageUrl;
       if (_imageFile != null) {
-        Reference storageRef = FirebaseStorage.instance.ref().child('profile_pictures/${user!.uid}.jpg');
+        final storageRef = FirebaseStorage.instance
+            .ref()
+            .child('profile_pictures/${user!.uid}.jpg');
         await storageRef.putFile(_imageFile!);
-        uploadedImageUrl = await storageRef.getDownloadURL();
+        finalImageUrl = await storageRef.getDownloadURL();
       }
 
-      // Update Firestore with the new profile details
-      await _firestore.collection('users').doc(user!.uid).update({
-        'name': usernameController.text,
-        'email': emailController.text,
-        'phone': phoneController.text,
-        'profilePic': uploadedImageUrl ?? imageUrl,
-      });
-
-      // Check if email has changed and update Firebase Authentication
-      if (emailController.text != user!.email) {
-        await user!.updateEmail(emailController.text);
-        // Also update the email in Firestore
-        await _firestore.collection('users').doc(user!.uid).update({
-          'email': emailController.text,
-        });
+      // Check if email has changed
+      final newEmail = emailController.text.trim();
+      if (newEmail != user!.email) {
+        await user!.verifyBeforeUpdateEmail(newEmail);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+                "Verification email sent to your new email address. Please verify to complete the update."),
+          ),
+        );
       }
 
-      // Update password if provided
-      if (newPasswordController.text.isNotEmpty &&
-          newPasswordController.text == confirmPasswordController.text) {
-        await user!.updatePassword(newPasswordController.text);
+      // Update password if both fields match and not empty
+      final newPassword = newPasswordController.text.trim();
+      final confirmPassword = confirmPasswordController.text.trim();
+      if (newPassword.isNotEmpty && newPassword == confirmPassword) {
+        await user!.updatePassword(newPassword);
       }
+
+      // Create updated user model
+      final updatedUser = UserModel(
+        uid: user!.uid,
+        name: usernameController.text.trim(),
+        email: newEmail,
+        phone: phoneController.text.trim(),
+        profilePic: finalImageUrl,
+      );
+
+      // Update Firestore document
+      await _firestore
+          .collection('users')
+          .doc(user!.uid)
+          .update(updatedUser.toMap());
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("Profile updated successfully!")),
       );
+    } on FirebaseAuthException catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: ${e.message}")),
+      );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Error: $e")),
+        const SnackBar(content: Text("An unexpected error occurred.")),
       );
     } finally {
       setState(() {
@@ -210,19 +234,21 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-   // Log out function
+  // Log out function
   Future<void> logOut(BuildContext context) async {
     try {
-      await FirebaseAuth.instance.signOut();  // Sign the user out
+      await FirebaseAuth.instance.signOut(); // Sign the user out
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const LoginPage()),  // Navigate to login page
+        MaterialPageRoute(
+            builder: (context) => const LoginPage()), // Navigate to login page
       );
     } catch (e) {
       print('Error logging out: $e');
       // Handle errors (optional)
     }
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -264,7 +290,8 @@ class _ProfilePageState extends State<ProfilePage> {
                                     : (imageUrl.isNotEmpty
                                         ? NetworkImage(imageUrl)
                                             as ImageProvider
-                                        : const AssetImage("assets/profile_placeholder.png")),
+                                        : const AssetImage(
+                                            "assets/images/profile.png")),
                               ),
                             ),
                             Positioned(
@@ -296,9 +323,11 @@ class _ProfilePageState extends State<ProfilePage> {
                               const SizedBox(height: 16),
                               _buildFormField("Phone Number", phoneController),
                               const SizedBox(height: 16),
-                              _buildPasswordField("New Password", newPasswordController),
+                              _buildPasswordField(
+                                  "New Password", newPasswordController),
                               const SizedBox(height: 16),
-                              _buildPasswordField("Confirm Password", confirmPasswordController),
+                              _buildPasswordField("Confirm Password",
+                                  confirmPasswordController),
                               const SizedBox(height: 32),
                               SizedBox(
                                 width: double.infinity,
@@ -306,7 +335,8 @@ class _ProfilePageState extends State<ProfilePage> {
                                 child: ElevatedButton(
                                   onPressed: _showPasswordDialog,
                                   style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color.fromRGBO(0, 86, 210, 1),
+                                    backgroundColor:
+                                        const Color.fromRGBO(0, 86, 210, 1),
                                     foregroundColor: Colors.black,
                                     elevation: 0,
                                     shape: RoundedRectangleBorder(
@@ -327,7 +357,9 @@ class _ProfilePageState extends State<ProfilePage> {
                                 width: double.infinity,
                                 height: 50,
                                 child: ElevatedButton(
-                                  onPressed:(){logOut(context);} ,
+                                  onPressed: () {
+                                    logOut(context);
+                                  },
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: Colors.red,
                                     foregroundColor: Colors.white,
@@ -363,7 +395,8 @@ class _ProfilePageState extends State<ProfilePage> {
       decoration: InputDecoration(
         labelText: label,
         border: const OutlineInputBorder(),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
     );
   }
@@ -375,7 +408,8 @@ class _ProfilePageState extends State<ProfilePage> {
       decoration: InputDecoration(
         labelText: label,
         border: const OutlineInputBorder(),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       ),
     );
   }

@@ -99,7 +99,7 @@ class _ActiveVehiclesPageState extends State<ActiveVehiclesPage> {
               );
             },
             child: const CircleAvatar(
-              backgroundImage: AssetImage('assets/images/zaz.png'),
+              backgroundImage: AssetImage('assets/images/profile.png'),
             ),
           ),
           const SizedBox(width: 16),
