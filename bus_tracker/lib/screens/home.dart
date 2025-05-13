@@ -1,7 +1,7 @@
 import 'package:bus_tracker/screens/add_vehicle.dart';
-import 'package:flutter/material.dart';
 import 'package:bus_tracker/screens/profile.dart';
-import 'package:bus_tracker/utils/checkLocation.dart';
+import 'package:bus_tracker/screens/setting.dart';
+import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -10,7 +10,6 @@ class ActiveVehiclesPage extends StatefulWidget {
   const ActiveVehiclesPage({super.key});
 
   @override
-  // ignore: library_private_types_in_public_api
   _ActiveVehiclesPageState createState() => _ActiveVehiclesPageState();
 }
 
@@ -19,14 +18,18 @@ class _ActiveVehiclesPageState extends State<ActiveVehiclesPage> {
   LatLng? _userLocation;
   GoogleMapController? _mapController;
 
-  // Function to check location services and permissions
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      checkLocationServices(context); // your existing function
-      _getCurrentLocation();
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
     });
+
+    // Navigate to Settings page if the Settings tab is tapped
+    if (index == 3) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const SettingsPage()),
+      );
+    }
   }
 
   Future<void> _getCurrentLocation() async {
@@ -36,7 +39,6 @@ class _ActiveVehiclesPageState extends State<ActiveVehiclesPage> {
         await Geolocator.openLocationSettings();
         return;
       }
-
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
@@ -44,19 +46,14 @@ class _ActiveVehiclesPageState extends State<ActiveVehiclesPage> {
           return;
         }
       }
-
       if (permission == LocationPermission.deniedForever) {
         return;
       }
-
       Position position = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.high);
-
       setState(() {
         _userLocation = LatLng(position.latitude, position.longitude);
       });
-
-      // Optional: Move the map camera to the user location
       _mapController?.animateCamera(
         CameraUpdate.newLatLng(_userLocation!),
       );
@@ -65,16 +62,17 @@ class _ActiveVehiclesPageState extends State<ActiveVehiclesPage> {
     }
   }
 
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios,
+              color: Color.fromARGB(255, 0, 0, 0)),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
         title: Text(
           'CarTrack',
           style: GoogleFonts.lato(
@@ -90,12 +88,10 @@ class _ActiveVehiclesPageState extends State<ActiveVehiclesPage> {
           ),
           GestureDetector(
             onTap: () {
-              // Navigate to ProfilePage when tapped
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) =>
-                      const ProfilePage(), // Replace with your actual profile page
+                  builder: (context) => const ProfilePage(),
                 ),
               );
             },
@@ -253,9 +249,9 @@ class _ActiveVehiclesPageState extends State<ActiveVehiclesPage> {
         ],
         currentIndex: _selectedIndex,
         selectedItemColor: Colors.blue,
-        unselectedItemColor: Colors.grey, // Add this line
-        showUnselectedLabels: true, // Add this line
-        showSelectedLabels: true, // Add this line
+        unselectedItemColor: Colors.grey,
+        showUnselectedLabels: true,
+        showSelectedLabels: true,
         onTap: _onItemTapped,
       ),
     );

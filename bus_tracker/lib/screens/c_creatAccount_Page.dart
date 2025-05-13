@@ -63,7 +63,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const CustomAppBar(title: 'BusTrack'),
+      appBar: const CustomAppBar(title: 'CarTrack'),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(30),
         child: Form(
@@ -110,7 +110,10 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                       context,
                       MaterialPageRoute(builder: (_) => const LoginPage()),
                     ),
-                    child: const Text('Sign in'),
+                    child: const Text(
+                      'Sign in',
+                          style: TextStyle(color: Colors.white),
+                        ),
                   ),
                 ],
               ),
