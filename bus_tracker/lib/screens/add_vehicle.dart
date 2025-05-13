@@ -43,7 +43,7 @@ class _AddCarPageState extends State<AddCarPage> {
           ),
         ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+        icon: const Icon(Icons.arrow_back_ios, color: Color.fromARGB(255, 0, 0, 0)),
           onPressed: () => Navigator.pop(context),
         ),
         elevation: 0,

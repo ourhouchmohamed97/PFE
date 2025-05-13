@@ -7,7 +7,7 @@ const Color blueColor = Color.fromRGBO(0, 86, 210, 1);
 // FONTS :
 const TextStyle boldTextStyle = TextStyle(
   fontSize: 24,
-  color: Colors.black,
+  color: Color.fromARGB(255, 255, 255, 255),
   fontWeight: FontWeight.bold,
 );
 
@@ -40,12 +40,12 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     return AppBar(
       leading: IconButton(
-        icon: const Icon(Icons.arrow_back_ios, color: Colors.black),
+        icon: const Icon(Icons.arrow_back_ios, color: Color.fromARGB(255, 255, 255, 255)),
         onPressed: onBackPressed ?? () => Navigator.pop(context),
       ),
       title: Text(
         title,
-        style: titleTextStyle ?? const TextStyle(fontWeight: FontWeight.bold, color: Colors.black),
+        style: titleTextStyle ?? const TextStyle(fontWeight: FontWeight.bold, color: Color.fromARGB(255, 255, 255, 255)),
       ),
       centerTitle: true,
       backgroundColor: backgroundColor,
@@ -154,6 +154,7 @@ class Mybutton extends StatelessWidget {
           child: Text(
             text,
             style: const TextStyle(
+              color: Colors.white,
               fontWeight: FontWeight.bold,
               fontSize: 16, // Adjusted font size
             ),
