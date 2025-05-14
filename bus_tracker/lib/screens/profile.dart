@@ -1,4 +1,4 @@
-import 'package:bus_tracker/models/UserModel.dart';
+import 'package:bus_tracker/models/user_model.dart';
 import 'package:bus_tracker/screens/d_login_Page.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';

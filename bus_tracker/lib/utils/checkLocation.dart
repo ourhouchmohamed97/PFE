@@ -12,19 +12,19 @@ Future<void> checkLocationServices(BuildContext context) async {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('Location Required'),
-        content: Text('Please enable GPS to continue.'),
+        title: const Text('Location Required'),
+        content: const Text('Please enable GPS to continue.'),
         actions: [
           TextButton(
             onPressed: () async {
               Navigator.pop(context);
               await Geolocator.openLocationSettings();
             },
-            child: Text('Open Settings'),
+            child: const Text('Open Settings'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
+            child: const Text('Cancel'),
           ),
         ],
       ),
@@ -44,7 +44,7 @@ Future<void> checkLocationServices(BuildContext context) async {
 
   if (permission == LocationPermission.deniedForever) {
     // Permissions are permanently denied
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
       content: Text('Location permissions are permanently denied'),
     ));
     return;

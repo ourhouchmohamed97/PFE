@@ -27,6 +27,7 @@ class UserModel {
   // Convert UserModel to Map (for uploading to Firestore)
   Map<String, dynamic> toMap() {
     return {
+      'uid': uid, 
       'name': name,
       'email': email,
       'phone': phone,

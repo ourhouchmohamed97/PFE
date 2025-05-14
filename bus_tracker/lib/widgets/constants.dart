@@ -170,7 +170,7 @@ class Mybutton extends StatelessWidget {
   class squareTile extends StatelessWidget {
   final String imagePath;
   final Function()? onTap;
-   squareTile({super.key , required this.imagePath, required this.onTap});
+   const squareTile({super.key , required this.imagePath, required this.onTap});
 
   @override
   Widget build(BuildContext context) {

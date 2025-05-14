@@ -18,60 +18,70 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
   String? errorMessage;
   bool isEmailSent = false;
 
-  void sendVerificationEmail() async {
+  Future<void> sendVerificationEmail() async {
     try {
-      User user = FirebaseAuth.instance.currentUser!;
+      final user = FirebaseAuth.instance.currentUser;
 
-      // Send verification email
-      await user.sendEmailVerification();
+      if (user != null && !user.emailVerified) {
+        await user.sendEmailVerification();
 
-      setState(() {
-        isEmailSent = true;
-        errorMessage = null;
-      });
+        if (mounted) {
+          setState(() {
+            isEmailSent = true;
+            errorMessage = null;
+          });
+        }
 
-      Fluttertoast.showToast(
-        msg: "Verification email sent to ${widget.email}",
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.BOTTOM,
-        backgroundColor: Colors.green,
-        textColor: Colors.white,
-      );
+        Fluttertoast.showToast(
+          msg: "Verification email sent to ${widget.email}",
+          toastLength: Toast.LENGTH_LONG,
+          gravity: ToastGravity.BOTTOM,
+          backgroundColor: Colors.green,
+          textColor: Colors.white,
+        );
+      }
     } catch (e) {
-      setState(() {
-        errorMessage = "Failed to send verification email: $e";
-      });
+      if (mounted) {
+        setState(() {
+          errorMessage = "Failed to send verification email: $e";
+        });
+      }
     }
   }
 
-  void checkEmailVerification() async {
+  Future<void> checkEmailVerification() async {
     try {
-      User user = FirebaseAuth.instance.currentUser!;
+      var user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await user.reload();
+        user = FirebaseAuth.instance.currentUser;
 
-      // Reload user to get the latest email verification status
-      await user.reload();
-      user = FirebaseAuth.instance.currentUser!;
+        if (user!.emailVerified) {
+          // Update Firestore with UID instead of email as doc ID
+          await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+            'emailVerified': true,
+          });
 
-      if (user.emailVerified) {
-        // Update Firestore to mark email as verified
-        await FirebaseFirestore.instance.collection('users').doc(widget.email).update({
-          'emailVerified': true,
-        });
-
-        // Navigate to login page
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => const LoginPage()),
-        );
-      } else {
-        setState(() {
-          errorMessage = "Email not verified. Please check your email and verify.";
-        });
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const LoginPage()),
+            );
+          }
+        } else {
+          if (mounted) {
+            setState(() {
+              errorMessage = "Email not verified. Please check your email and verify.";
+            });
+          }
+        }
       }
     } catch (e) {
-      setState(() {
-        errorMessage = "Error checking email verification: $e";
-      });
+      if (mounted) {
+        setState(() {
+          errorMessage = "Error checking email verification: $e";
+        });
+      }
     }
   }
 
@@ -84,7 +94,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
     );
   }
 
-  Padding _buildBody(BuildContext context) {
+  Widget _buildBody(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.all(20.0),
       child: Column(

@@ -11,21 +11,22 @@ class AuthService {
     required String password,
   }) async {
     try {
-      UserCredential userCredential = await _auth.createUserWithEmailAndPassword(
+      UserCredential userCredential =
+          await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
 
       await userCredential.user!.sendEmailVerification();
 
-      await _firestore.collection('users').doc(email).set({
+      await _firestore.collection('users').doc(userCredential.user!.uid).set({
         'name': name,
         'email': email,
         'phone': '',
         'profilePic': '',
         'emailVerified': false,
       });
-
+      
       return null; // success
     } catch (e) {
       return e.toString(); // return error
