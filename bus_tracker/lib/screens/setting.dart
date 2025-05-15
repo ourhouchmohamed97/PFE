@@ -17,7 +17,6 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _pushNotificationsEnabled = true;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -89,9 +88,36 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
                 const SizedBox(height: 8),
 
-                _buildListTile('Edit profile'),
-                _buildListTile('Change password'),
-                _buildListTile('Add a payment method'),
+                _buildListTile(
+                  'Edit profile',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const EditProfilePage()),
+                    );
+                  },
+                ),
+                _buildListTile(
+                  'Change password',
+                  // onTap: () {
+                  //   Navigator.push(
+                  //     context,
+                  //     MaterialPageRoute(
+                  //         builder: (context) => const ChangePasswordPage()),
+                  //   );
+                  // },
+                ),
+                _buildListTile(
+                  'Add a payment method',
+                  // onTap: () {
+                  //   Navigator.push(
+                  //     context,
+                  //     MaterialPageRoute(
+                  //         builder: (context) => const AddPaymentMethodPage()),
+                  //   );
+                  // },
+                ),
 
                 SwitchListTile(
                   title: const Text('Push notifications'),
