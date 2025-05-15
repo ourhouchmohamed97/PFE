@@ -1,4 +1,5 @@
 import 'package:bus_tracker/screens/add_vehicle.dart';
+import 'package:bus_tracker/screens/notification.dart';
 import 'package:bus_tracker/screens/profile.dart';
 import 'package:bus_tracker/screens/setting.dart';
 import 'package:flutter/material.dart';
@@ -83,7 +84,12 @@ class _ActiveVehiclesPageState extends State<ActiveVehiclesPage> {
         ),
         actions: [
           IconButton(
-            onPressed: () {},
+            onPressed: () {
+               Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const NotificationsPage()),
+              );
+            },
             icon: const Icon(Icons.notifications),
           ),
           GestureDetector(

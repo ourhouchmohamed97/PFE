@@ -228,9 +228,15 @@ class _EditProfilePageState extends State<EditProfilePage> {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios, color: Color.fromARGB(255, 255, 255, 255)),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
         title: const Text(
           "Edit Profile",
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          style: TextStyle(color: Color.fromARGB(255, 255, 255, 255), fontWeight: FontWeight.bold),
         ),
         backgroundColor: const Color.fromRGBO(0, 86, 210, 1),
         elevation: 0,
@@ -307,7 +313,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                   onPressed: _showPasswordDialog,
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color.fromRGBO(0, 86, 210, 1),
-                                    foregroundColor: Colors.black,
+                                    foregroundColor: const Color.fromARGB(255, 255, 255, 255),
                                     elevation: 0,
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(8),
