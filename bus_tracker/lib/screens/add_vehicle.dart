@@ -6,10 +6,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
-
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
+import 'package:flutter_typeahead/flutter_typeahead.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class AddCarPage extends StatefulWidget {
   const AddCarPage({super.key});
@@ -20,40 +21,61 @@ class AddCarPage extends StatefulWidget {
 
 class _AddCarPageState extends State<AddCarPage> {
   final _formKey = GlobalKey<FormState>();
+  final currentYear = DateTime.now().year;
+
   final TextEditingController _modelController = TextEditingController();
   final TextEditingController _matriculeController = TextEditingController();
+  final TextEditingController _brandController = TextEditingController();
+
   String? _selectedBrand;
+  String? _selectedModel;
   String? _selectedType;
   int? _selectedYear;
 
-  // Sample data (replace with real data)
-  List<String> brands = ['Toyota', 'Honda', 'Ford', 'Tesla'];
   List<String> types = ['Sedan', 'SUV', 'Hatchback', 'Truck'];
 
-//  function to save car data
-  void _saveCar() async {
-  if (_formKey.currentState!.validate()) {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('You must be logged in to add a car')),
-      );
+  @override
+  void dispose() {
+    _modelController.dispose();
+    _matriculeController.dispose();
+    _brandController.dispose();
+    super.dispose();
+  }
+
+  // Save car data
+  Future<void> _saveCar() async {
+    if (!_formKey.currentState!.validate()) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please fill in all fields')),
+        );
+      }
       return;
     }
 
-    // Step 1: Create Firestore doc ref to get vehicleId
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('You must be logged in to add a car')),
+        );
+      }
+      return;
+    }
+
+    // Create Firestore doc ref to get vehicleId
     final vehicleRef = FirebaseFirestore.instance
         .collection('users')
         .doc(user.uid)
         .collection('vehicles')
-        .doc(); // Auto-generated ID
+        .doc();
 
     final vehicleId = vehicleRef.id;
 
-    // Step 2: Upload image to Supabase
+    // Upload image to Supabase
     final imageUrl = await pickAndUploadCarPhoto(vehicleId);
 
-    // Step 3: Create Vehicle model instance
+    // Create Vehicle instance
     final vehicle = Vehicle(
       vid: vehicleId,
       ownerId: user.uid,
@@ -67,60 +89,147 @@ class _AddCarPageState extends State<AddCarPage> {
     );
 
     try {
-      // Step 4: Save to Firestore
       await vehicleRef.set(vehicle.toMap());
+      if (!mounted) return;
 
-      // ignore: use_build_context_synchronously
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Car saved successfully!')),
       );
 
-      // ignore: use_build_context_synchronously
       Navigator.pop(context);
     } catch (e) {
-      // ignore: use_build_context_synchronously
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error saving car: ${e.toString()}')),
+        SnackBar(content: Text('Error saving car: $e')),
       );
     }
-  } else {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Please fill in all fields')),
-    );
   }
-}
 
-  //function to pick and upload car photo
-Future<String?> pickAndUploadCarPhoto(String vehicleId) async {
-  final picker = ImagePicker();
-  final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-  if (pickedFile == null) return null;
+  // Pick and upload photo to Supabase Storage
+  Future<String?> pickAndUploadCarPhoto(String vehicleId) async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile == null) return null;
 
-  final imageFile = File(pickedFile.path);
-  final fileName = '${vehicleId}_${const Uuid().v4()}.jpg';
-
-  try {
+    final fileBytes = await pickedFile.readAsBytes();
     final supabase = Supabase.instance.client;
 
-    // Upload the image to Supabase storage (will throw if it fails)
-    await supabase.storage
-        .from('vehicle-images')
-        .upload('public/$fileName', imageFile);
+    final userId = supabase.auth.currentUser?.id;
+    if (userId == null) return null;
 
-    // Get and return the public URL of the uploaded image
-    final publicUrl = supabase.storage
-        .from('vehicle-images')
-        .getPublicUrl('public/$fileName');
+    final fileName = '${vehicleId}_${const Uuid().v4()}.jpg';
+    final filePath = '$userId/$fileName';
 
-    return publicUrl;
-  } catch (e) {
-    print('Upload to Supabase failed: $e');
-    return null;
+    try {
+      final response =
+          await supabase.storage.from('vehicle-images').uploadBinary(
+                filePath,
+                fileBytes,
+                fileOptions: const FileOptions(contentType: 'image/jpeg'),
+              );
+
+      if (response.isEmpty) {
+        print('Failed to upload image');
+        return null;
+      }
+
+      final publicUrl =
+          supabase.storage.from('vehicle-images').getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (e, stack) {
+      print('Upload to Supabase failed: $e');
+      print(stack);
+      return null;
+    }
   }
-}
 
+  // Fetch car brand suggestions from API
 
+  Future<List<String>> fetchBrandSuggestions(String query) async {
+    final uri = Uri.https(
+      'car-api2.p.rapidapi.com',
+      '/api/makes',
+      {
+        'sort': 'id',
+        'direction': 'asc',
+        'verbose': 'yes',
+      },
+    );
 
+    try {
+      final response = await http.get(
+        uri,
+        headers: {
+          'X-RapidAPI-Key':
+              '2cdc31e33fmsh484d3a30022930ap1bde81jsn9d05d1360cc1', // Replace with your actual key
+          'X-RapidAPI-Host': 'car-api2.p.rapidapi.com',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        // Assuming the API returns a list of brands in a field called 'data'
+        if (data is Map && data['data'] is List) {
+          final List<dynamic> brands = data['data'];
+          // Filter by query and return brand names as strings
+          return brands
+              .map((brand) => brand['name']?.toString() ?? '')
+              .where((name) => name.toLowerCase().contains(query.toLowerCase()))
+              .toList();
+        }
+        return [];
+      } else {
+        print('Request failed with status: ${response.statusCode}');
+        print('Body: ${response.body}');
+        return [];
+      }
+    } catch (e) {
+      print('Error fetching brands: $e');
+      return [];
+    }
+  }
+
+  Future<List<String>> fetchModelSuggestions(String brand, String query) async {
+    final uri = Uri.https(
+      'car-api2.p.rapidapi.com',
+      '/api/models',
+      {
+        'make': brand.toLowerCase(),
+        'sort': 'id',
+        'direction': 'asc',
+        'year': '2020',
+        'verbose': 'yes',
+      },
+    );
+
+    try {
+      final response = await http.get(
+        uri,
+        headers: {
+          'X-RapidAPI-Key':
+              '2cdc31e33fmsh484d3a30022930ap1bde81jsn9d05d1360cc1', // replace with your actual key
+          'X-RapidAPI-Host': 'car-api2.p.rapidapi.com',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        final List<dynamic> models = decoded['data'];
+        return models
+            .map((model) => model['name'].toString())
+            .where((name) => name.toLowerCase().contains(query.toLowerCase()))
+            .toList();
+      } else {
+        print('Request failed with status: ${response.statusCode}');
+        print('Body: ${response.body}');
+        return [];
+      }
+    } catch (e) {
+      print('Error fetching models: $e');
+      return [];
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -141,33 +250,26 @@ Future<String?> pickAndUploadCarPhoto(String vehicleId) async {
         ),
         elevation: 0,
       ),
-      backgroundColor: const Color(0xFFE5E7EB), // Gray background
+      backgroundColor: const Color(0xFFE5E7EB),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
           child: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Header Text Only
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
-                  child: const Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Please fill in the details of your car to get started.',
-                        style: TextStyle(color: Colors.black),
-                      ),
-                    ],
+                  child: const Text(
+                    'Please fill in the details of your car to get started.',
+                    style: TextStyle(color: Colors.black),
                   ),
                 ),
-
                 const SizedBox(height: 16),
 
-                // 🚗 Basic Information Section
+                // Basic Information Section
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
@@ -185,62 +287,100 @@ Future<String?> pickAndUploadCarPhoto(String vehicleId) async {
                       ),
                       const SizedBox(height: 10),
 
-                      // Brand Dropdown
-                      DropdownButtonFormField<String>(
-                        value: _selectedBrand,
-                        decoration: const InputDecoration(
-                          labelText: 'Car Brand',
-                          labelStyle: TextStyle(color: Colors.black54),
-                          border: OutlineInputBorder(
-                            borderSide: BorderSide(color: Colors.red),
+                      // Brand with TypeAhead
+                      TypeAheadFormField<String>(
+                        textFieldConfiguration: TextFieldConfiguration(
+                          controller: _brandController,
+                          decoration: const InputDecoration(
+                            labelText: 'Car Brand',
+                            border: OutlineInputBorder(),
                           ),
-                          errorBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: Colors.red, width: 2),
-                          ),
-                          focusedErrorBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: Colors.red, width: 2),
-                          ),
+                          onChanged: (value) {
+                            setState(() {
+                              _selectedBrand = value;
+                              // When brand changes manually, you may want to clear selected model & controller
+                              _modelController.clear();
+                              _selectedBrand = null;
+                            });
+                          },
                         ),
-                        items: brands.map((brand) {
-                          return DropdownMenuItem(
-                            value: brand,
-                            child: Text(brand),
-                          );
-                        }).toList(),
-                        onChanged: (value) {
-                          setState(() => _selectedBrand = value);
+                        suggestionsCallback: (pattern) async {
+                          return await fetchBrandSuggestions(pattern);
                         },
-                        validator: (value) =>
-                            value == null ? 'Please select a brand' : null,
+                        itemBuilder: (context, suggestion) {
+                          return ListTile(title: Text(suggestion));
+                        },
+                        onSuggestionSelected: (suggestion) {
+                          _brandController.text = suggestion;
+                          setState(() {
+                            _selectedBrand = suggestion;
+                            // Clear the model field when a new brand is selected
+                            _modelController.clear();
+                            _selectedBrand = null;
+                          });
+                        },
+                        validator: (value) => (value == null || value.isEmpty)
+                            ? 'Please enter a brand'
+                            : null,
+                        noItemsFoundBuilder: (context) => const Padding(
+                          padding: EdgeInsets.all(8),
+                          child: Text('No brands found'),
+                        ),
                       ),
 
                       const SizedBox(height: 10),
 
-                      // Car Model TextField
-                      TextFormField(
-                        controller: _modelController,
-                        decoration: const InputDecoration(
-                          labelText: 'Car Model',
-                          hintText: 'e.g., C-Class, Corolla',
-                          border: OutlineInputBorder(),
-                          errorBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: Colors.red, width: 2),
-                          ),
-                          focusedErrorBorder: OutlineInputBorder(
-                            borderSide: BorderSide(color: Colors.red, width: 2),
+                      // Model TextField
+                      TypeAheadFormField<String>(
+                        textFieldConfiguration: TextFieldConfiguration(
+                          controller: _modelController,
+                          decoration: const InputDecoration(
+                            labelText: 'Car Model',
+                            hintText: 'e.g., C-Class, Corolla',
+                            border: OutlineInputBorder(),
+                            errorBorder: OutlineInputBorder(
+                              borderSide:
+                                  BorderSide(color: Colors.red, width: 2),
+                            ),
+                            focusedErrorBorder: OutlineInputBorder(
+                              borderSide:
+                                  BorderSide(color: Colors.red, width: 2),
+                            ),
                           ),
                         ),
+                        suggestionsCallback: (pattern) async {
+                          if (_selectedBrand == null ||
+                              _selectedBrand!.isEmpty) {
+                            // No brand selected, no suggestions
+                            return [];
+                          }
+                          return await fetchModelSuggestions(
+                              _selectedBrand!, pattern);
+                        },
+                        itemBuilder: (context, suggestion) {
+                          return ListTile(title: Text(suggestion));
+                        },
+                        onSuggestionSelected: (suggestion) {
+                          _modelController.text = suggestion;
+                          setState(() {
+                            _selectedModel = suggestion;
+                          });
+                        },
                         validator: (value) {
-                          if (value?.isEmpty ?? true) {
+                          if (value == null || value.isEmpty) {
                             return 'Please enter a model';
                           }
                           return null;
                         },
+                        noItemsFoundBuilder: (context) => const Padding(
+                          padding: EdgeInsets.all(8),
+                          child: Text('No models found'),
+                        ),
                       ),
 
                       const SizedBox(height: 10),
 
-                      // Car Type Dropdown
+                      // Type Dropdown
                       DropdownButtonFormField<String>(
                         value: _selectedType,
                         decoration: const InputDecoration(
@@ -251,12 +391,12 @@ Future<String?> pickAndUploadCarPhoto(String vehicleId) async {
                             borderSide: BorderSide(color: Colors.red, width: 2),
                           ),
                         ),
-                        items: types.map((type) {
-                          return DropdownMenuItem(
-                            value: type,
-                            child: Text(type),
-                          );
-                        }).toList(),
+                        items: types
+                            .map((type) => DropdownMenuItem(
+                                  value: type,
+                                  child: Text(type),
+                                ))
+                            .toList(),
                         onChanged: (value) {
                           setState(() => _selectedType = value);
                         },
@@ -277,22 +417,27 @@ Future<String?> pickAndUploadCarPhoto(String vehicleId) async {
                             borderSide: BorderSide(color: Colors.red, width: 2),
                           ),
                         ),
-                        items: List.generate(50, (index) => index + 2000)
-                            .map((year) {
-                          return DropdownMenuItem(
-                            value: year,
-                            child: Text(year.toString()),
-                          );
-                        }).toList(),
-                        onChanged: (value) {
-                          setState(() => _selectedYear = value);
+                        items: List.generate(
+                                currentYear - 2000 + 1, (index) => 2000 + index)
+                            .map(
+                              (year) => DropdownMenuItem<int>(
+                                value: year,
+                                child: Text(year.toString()),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (int? value) {
+                          setState(() {
+                            _selectedYear = value;
+                          });
                         },
                         validator: (value) =>
                             value == null ? 'Please select a year' : null,
                       ),
+
                       const SizedBox(height: 10),
 
-                      // marticule TextField
+                      // Matricule TextField
                       TextFormField(
                         controller: _matriculeController,
                         decoration: const InputDecoration(
@@ -309,11 +454,10 @@ Future<String?> pickAndUploadCarPhoto(String vehicleId) async {
                         keyboardType: TextInputType.text,
                         inputFormatters: [MatriculeInputFormatter()],
                         validator: MatriculeValidator.validate,
-                      )
+                      ),
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 16),
 
                 // 🖼️ Car Photos Section
@@ -388,7 +532,6 @@ Future<String?> pickAndUploadCarPhoto(String vehicleId) async {
                                       'uploadedAt': DateTime.now(),
                                     }, SetOptions(merge: true));
                                   } else {
-                                    
                                     // ignore: use_build_context_synchronously
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(

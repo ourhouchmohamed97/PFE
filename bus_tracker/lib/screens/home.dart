@@ -1,3 +1,4 @@
+import 'package:bus_tracker/models/vehicule_model.dart';
 import 'package:bus_tracker/screens/add_vehicle.dart';
 import 'package:flutter/material.dart';
 import 'package:bus_tracker/screens/profile.dart';
@@ -5,6 +6,8 @@ import 'package:bus_tracker/utils/checkLocation.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 class ActiveVehiclesPage extends StatefulWidget {
   const ActiveVehiclesPage({super.key});
@@ -19,13 +22,35 @@ class _ActiveVehiclesPageState extends State<ActiveVehiclesPage> {
   LatLng? _userLocation;
   GoogleMapController? _mapController;
 
+  List<Vehicle> _vehicles = [];
+
+  Future<void> _fetchUserVehicles() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final snapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('vehicles')
+        .get();
+
+    final vehicles = snapshot.docs
+        .map((doc) => Vehicle.fromMap(doc.id, doc.data()))
+        .toList();
+
+    setState(() {
+      _vehicles = vehicles;
+    });
+  }
+
   // Function to check location services and permissions
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      checkLocationServices(context); // your existing function
+      checkLocationServices(context);
       _getCurrentLocation();
+      _fetchUserVehicles(); // fetch vehicles on load
     });
   }
 
@@ -159,20 +184,12 @@ class _ActiveVehiclesPageState extends State<ActiveVehiclesPage> {
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 16),
-                  ...[
-                    const VehicleCard(
-                      model: 'Tesla Model 3',
-                      license: 'XYZ 123',
-                      status: 'Active',
-                      location: 'Downtown Business District',
-                    ),
-                    const VehicleCard(
-                      model: 'BMW X5',
-                      license: 'ABC 789',
-                      status: 'En Route',
-                      location: 'Airport Terminal 2',
-                    ),
-                  ],
+                  ..._vehicles.map((vehicle) => VehicleCard(
+                        model: '${vehicle.brand} ${vehicle.model}',
+                        license: vehicle.matricule,
+                        status: 'Active',
+                        location: 'Unknown location',
+                      )),
                   const SizedBox(height: 32),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
