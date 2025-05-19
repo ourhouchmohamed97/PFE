@@ -2,6 +2,7 @@ import 'package:bus_tracker/screens/d_login_Page.dart';
 import 'package:bus_tracker/screens/edit_profile.dart';
 import 'package:bus_tracker/screens/home.dart';
 import 'package:bus_tracker/screens/setting.dart';
+import 'package:bus_tracker/screens/view_vehicle.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:bus_tracker/widgets/constants.dart';
 import 'package:flutter/material.dart';
@@ -33,8 +34,7 @@ class ProfilePage extends StatelessWidget {
               );
               break;
             case 1:
-              // Replace with your Vehicles page
-              // Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const VehiclesPage()));
+              Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const VehicleTrackingPage()));
               break;
             case 2:
               // Replace with your History page
