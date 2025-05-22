@@ -243,29 +243,77 @@ class _VehicleTrackingPageState extends State<VehicleTrackingPage> {
               bottom: 20,
               left: 16,
               right: 16,
-              child: ElevatedButton(
-                onPressed: () {
-                  showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    shape: const RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.vertical(top: Radius.circular(20)),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  // Connect button with custom background color
+                  ElevatedButton(
+                    onPressed: () {
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        builder: (_) =>
+                            _buildConnectionSheet(_selectedVehicle!),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor:
+                          Colors.transparent, // Remove default bg color
+                      elevation: 0, // Remove default shadow
+                      padding: EdgeInsets
+                          .zero, // Remove default padding for Ink decoration
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
                     ),
-                    builder: (_) => _buildConnectionSheet(_selectedVehicle!),
-                  );
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  padding: const EdgeInsets.symmetric(vertical: 26),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    child: Ink(
+                      decoration: BoxDecoration(
+                        color: Colors.blue,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Container(
+                        alignment: Alignment.center,
+                        constraints: const BoxConstraints(minHeight: 56),
+                        child: Text(
+                          'Connect with "${_selectedVehicle!.type}"',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            color: Colors.white,
+                            fontWeight: FontWeight.w400,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-                child: Text(
-                  'Connect with "${_selectedVehicle!.type}"',
-                  style: const TextStyle(fontSize: 16, color: Colors.white),
-                ),
+
+                  // Cancel (X) button - positioned top right with shadow
+                  Positioned(
+                    top: -12,
+                    right: -12,
+                    child: Material(
+                      color: Colors.white,
+                      shape: const CircleBorder(),
+                      elevation: 4,
+                      child: InkWell(
+                        customBorder: const CircleBorder(),
+                        onTap: () {
+                          setState(() {
+                            _selectedVehicle = null;
+                          });
+                        },
+                        child: const Padding(
+                          padding: EdgeInsets.all(8),
+                          child: Icon(
+                            Icons.close,
+                            size: 20,
+                            color: Colors.redAccent,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
         ],
@@ -301,46 +349,63 @@ class _VehicleTrackingPageState extends State<VehicleTrackingPage> {
   }
 }
 
-// 🟨 Vehicle Model
+// // 🟨 Vehicle Model
 class Vehicle {
   final String type;
   final String arrivalTime;
   final int distance;
   final String imagePath;
+  final String driverName;
+  final String matricol;
+  final double rating;
 
   Vehicle({
     required this.type,
     required this.arrivalTime,
     required this.distance,
     this.imagePath = 'assets/images/car1.png',
+    this.driverName = 'John Doe',
+    this.matricol = 'ABC-123',
+    this.rating = 4.5,
   });
 }
 
-// Sample vehicle data
 final List<Vehicle> _vehicles = [
   Vehicle(
     type: 'Standard 4-seat',
     arrivalTime: '4:23PM',
     distance: 6,
     imagePath: 'assets/images/car1.png',
+    driverName: 'James Smith',
+    matricol: 'XYZ-789',
+    rating: 4.7,
   ),
   Vehicle(
     type: 'Premium 4-seat',
     arrivalTime: '4:26PM',
     distance: 8,
     imagePath: 'assets/images/car2.png',
+    driverName: 'Emily Johnson',
+    matricol: 'LMN-456',
+    rating: 4.6,
   ),
   Vehicle(
     type: 'Standard 6-seat',
     arrivalTime: '4:20PM',
     distance: 3,
     imagePath: 'assets/images/car3.png',
+    driverName: 'Michael Brown',
+    matricol: 'PQR-321',
+    rating: 4.4,
   ),
   Vehicle(
     type: 'VIP',
     arrivalTime: '4:23PM',
     distance: 6,
     imagePath: 'assets/images/car4.png',
+    driverName: 'Sophia Williams',
+    matricol: 'DEF-678',
+    rating: 4.9,
   ),
 ];
 
@@ -448,6 +513,7 @@ Widget _buildConnectionSheet(Vehicle vehicle) {
                   const Spacer(),
                   TextButton(
                     onPressed: () {
+                      _showDriverConnectionSheet(context, vehicle);
                     },
                     child: const Text('Connect now'),
                   ),
@@ -474,5 +540,136 @@ Widget _buildConnectionSheet(Vehicle vehicle) {
         ),
       );
     },
+  );
+}
+
+void _showDriverConnectionSheet(BuildContext context, Vehicle vehicle) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.white,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (context) => Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            height: 5,
+            width: 40,
+            margin: const EdgeInsets.only(bottom: 10),
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(10),
+            ),
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text("Connecting to driver",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.blue,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Text("Available",
+                    style: TextStyle(color: Colors.white, fontSize: 12)),
+              ),
+            ],
+          ),
+          const Divider(height: 32),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              const CircleAvatar(
+                radius: 30,
+                backgroundImage:
+                    AssetImage('assets/images/zaz.png'), // Example image
+              ),
+              const SizedBox(width: 12),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(vehicle.matricol,
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text(vehicle.type, style: TextStyle(color: Colors.grey[600])),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Text(vehicle.driverName,
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w600)),
+              const SizedBox(width: 8),
+              const Icon(Icons.star, color: Colors.amber, size: 18),
+              Text(vehicle.rating.toString()),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.shade300),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.chat, color: Colors.grey),
+                      SizedBox(width: 8),
+                      Text("Chat with driver"),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              const CircleAvatar(
+                backgroundColor: Color(0xFFEFEFEF),
+                child: Icon(Icons.phone, color: Colors.black),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(context),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: Colors.red),
+                    foregroundColor: Colors.red,
+                  ),
+                  child: const Text("Cancel Connection"),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () {
+                    // Your call logic here
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue,
+                    foregroundColor: Colors.white,
+                  ),
+                  child: const Text("Call driver"),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    ),
   );
 }
