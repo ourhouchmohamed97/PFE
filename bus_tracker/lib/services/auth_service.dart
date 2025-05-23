@@ -8,6 +8,7 @@ class AuthService {
   Future<String?> registerUser({
     required String name,
     required String email,
+    required String phoneNumber,
     required String password,
   }) async {
     try {
@@ -22,11 +23,10 @@ class AuthService {
       await _firestore.collection('users').doc(userCredential.user!.uid).set({
         'name': name,
         'email': email,
-        'phone': '',
+        'phoneNumber': phoneNumber,
         'profilePic': '',
         'emailVerified': false,
       });
-      
       return null; // success
     } catch (e) {
       return e.toString(); // return error

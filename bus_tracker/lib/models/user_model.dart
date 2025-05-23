@@ -1,37 +1,42 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class UserModel {
   final String uid;
   final String name;
   final String email;
-  final String? phone;
+  final String? phoneNumber;
   final String? profilePic;
+  final DateTime? createdAt; // ✅ Add this field
 
   UserModel({
     required this.uid,
     required this.name,
     required this.email,
-    this.phone,
+    this.phoneNumber,
     this.profilePic,
+    this.createdAt,
   });
 
-  // Convert Firestore document to UserModel
-  factory UserModel.fromMap(Map<String, dynamic> data, String uid) {
+  factory UserModel.fromMap(Map<String, dynamic> map, String uid) {
     return UserModel(
       uid: uid,
-      name: data['name'] ?? '',
-      email: data['email'] ?? '',
-      phone: data['phone'],
-      profilePic: data['profilePic'],
+      name: map['name'] ?? '',
+      email: map['email'] ?? '',
+      phoneNumber: map['phoneNumber'],
+      profilePic: map['profilePic'],
+      createdAt: map['createdAt'] != null
+          ? (map['createdAt'] as Timestamp).toDate()
+          : null,
     );
   }
 
-  // Convert UserModel to Map (for uploading to Firestore)
   Map<String, dynamic> toMap() {
     return {
-      'uid': uid, 
       'name': name,
       'email': email,
-      'phone': phone,
+      'phoneNumber': phoneNumber,
       'profilePic': profilePic,
+      'createdAt': createdAt != null ? Timestamp.fromDate(createdAt!) : null,
     };
   }
 }

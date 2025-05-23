@@ -17,6 +17,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _emailController = TextEditingController();
+   final _phoneNumberlController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
 
@@ -33,6 +34,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         name: _nameController.text,
         email: _emailController.text,
         password: _passwordController.text,
+        phoneNumber: _phoneNumberlController.text,
       );
 
       if (error == null) {
@@ -63,7 +65,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const CustomAppBar(title: 'BusTrack'),
+      appBar: const CustomAppBar(title: 'CarTrack'),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(30),
         child: Form(
@@ -85,6 +87,14 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                 validator: FieldValidator.validateEmail,
               ),
               const SizedBox(height: 30),
+              CustomTextField(
+                labelText: 'Phone-Number',
+                keyboardType: TextInputType.phone,
+                isPassword: false,
+                controller: _phoneNumberlController,
+                validator: FieldValidator.validatePhoneNumber,
+              ),
+               const SizedBox(height: 30),
               CustomTextField(
                 labelText: 'Password',
                 isPassword: true,
@@ -110,7 +120,10 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                       context,
                       MaterialPageRoute(builder: (_) => const LoginPage()),
                     ),
-                    child: const Text('Sign in'),
+                    child: const Text(
+                      'Sign in',
+                          style: TextStyle(color: Colors.white),
+                        ),
                   ),
                 ],
               ),

@@ -15,6 +15,15 @@ class FieldValidator {
     return null;
   }
 
+  static String? validatePhoneNumber(String? value) {
+  if (value == null || value.trim().isEmpty) return 'Phone number is required';
+  final phoneRegExp = RegExp(r'^\+?[0-9]{7,15}$');
+  if (!phoneRegExp.hasMatch(value.trim())) {
+    return 'Invalid phone number';
+  }
+  return null;
+}
+
   static String? validateSignupPassword(String? value) {
     if (value == null || value.isEmpty) return 'Enter a password';
     if (value.length < 8) return 'Minimum 8 characters';
