@@ -1,3 +1,4 @@
+import 'package:bus_tracker/screens/view_vehicle.dart';
 import 'package:flutter/material.dart';
 import 'package:bus_tracker/screens/home.dart';
 import 'package:bus_tracker/screens/setting.dart';
@@ -210,6 +211,12 @@ class _NotificationsPageState extends State<NotificationsPage> {
               Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(builder: (_) => const ActiveVehiclesPage()),
+              );
+              break;
+            case 1:
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const VehicleTrackingPage()),
               );
               break;
             case 3:

@@ -81,6 +81,14 @@ class _ProfilePageState extends State<ProfilePage> {
                 MaterialPageRoute(builder: (_) => const ActiveVehiclesPage()),
               );
               break;
+            case 1:
+              // Replace with your Vehicles page
+              // Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const VehiclesPage()));
+              break;
+            case 2:
+              // Replace with your History page
+              // Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HistoryPage()));
+              break;
             case 3:
               Navigator.pushReplacement(
                 context,
