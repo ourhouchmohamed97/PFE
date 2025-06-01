@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@sendgrid/mail": "^8.1.4"
+  }
+}

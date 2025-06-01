@@ -12,7 +12,20 @@
           "package_name": "com.firebase.bus_tracker"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "759707120454-jlmub2sktnai519aeq5t7vaq514h7l58.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.firebase.bus_tracker",
+            "certificate_hash": "68f3aee4f6334e433bbac4b08d6d1c0dddc1cdf0"
+          }
+        },
+        {
+          "client_id": "759707120454-1gl8v2jcu37j7kah2foailvdnagujr63.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyANOGOIdQ-fM5X6y63KaOvJltLIa8PGfkk"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "759707120454-1gl8v2jcu37j7kah2foailvdnagujr63.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "759707120454-hrl7b2vqpa8m3cpe6tkp9mvct28shgrf.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.example.busTracker"
+              }
+            }
+          ]
         }
       }
     }
