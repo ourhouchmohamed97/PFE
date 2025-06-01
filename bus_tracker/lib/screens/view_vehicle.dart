@@ -1,3 +1,5 @@
+import 'package:bus_tracker/screens/call.dart';
+import 'package:bus_tracker/screens/chat.dart';
 import 'package:bus_tracker/screens/home.dart';
 import 'package:bus_tracker/screens/notification.dart';
 import 'package:bus_tracker/screens/profile.dart';
@@ -605,9 +607,11 @@ void _showDriverConnectionSheet(BuildContext context, Vehicle vehicle) {
           const SizedBox(height: 12),
           Row(
             children: [
-              Text(vehicle.driverName,
-                  style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.w600)),
+              Text(
+                vehicle.driverName,
+                style:
+                    const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+              ),
               const SizedBox(width: 8),
               const Icon(Icons.star, color: Colors.amber, size: 18),
               Text(vehicle.rating.toString()),
@@ -617,26 +621,29 @@ void _showDriverConnectionSheet(BuildContext context, Vehicle vehicle) {
           Row(
             children: [
               Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.chat, color: Colors.grey),
-                      SizedBox(width: 8),
-                      Text("Chat with driver"),
-                    ],
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const ChatPage()),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.chat, color: Colors.grey),
+                        SizedBox(width: 8),
+                        Text("Chat with driver"),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              const CircleAvatar(
-                backgroundColor: Color(0xFFEFEFEF),
-                child: Icon(Icons.phone, color: Colors.black),
               ),
             ],
           ),
@@ -657,7 +664,10 @@ void _showDriverConnectionSheet(BuildContext context, Vehicle vehicle) {
               Expanded(
                 child: ElevatedButton(
                   onPressed: () {
-                    // Your call logic here
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const CallPage()),
+                    );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
