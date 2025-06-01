@@ -1,0 +1,2 @@
+C:/PFE/bus_tracker/android/app/.cxx/Debug/49722h45/armeabi-v7a/CMakeFiles/edit_cache.dir
+C:/PFE/bus_tracker/android/app/.cxx/Debug/49722h45/armeabi-v7a/CMakeFiles/rebuild_cache.dir
