@@ -1,0 +1,1 @@
+C:\PFE\bus_tracker\build\app\intermediates\cxx\Debug\49722h45\obj\armeabi-v7a
