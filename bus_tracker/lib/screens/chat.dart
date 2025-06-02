@@ -1,5 +1,6 @@
 import 'package:bus_tracker/screens/call.dart';
 import 'package:flutter/material.dart';
+// ignore: depend_on_referenced_packages
 import 'package:intl/intl.dart';
 
 class Message {
