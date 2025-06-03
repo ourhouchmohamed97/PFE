@@ -1,6 +1,6 @@
-import 'package:bus_tracker/screens/c_creatAccount_Page.dart';
-import 'package:bus_tracker/utils/auth_page.dart';
-import 'package:bus_tracker/widgets/constants.dart';
+import 'package:bus_tracker/shared/pages/c_creatAccount_Page.dart';
+import 'package:bus_tracker/core/utils/auth_page.dart';
+import 'package:bus_tracker/core/widgets/constants.dart';
 import 'package:flutter/material.dart';
 // Import the next page
 

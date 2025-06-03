@@ -1,11 +1,11 @@
 import 'dart:async';
-import 'package:bus_tracker/models/vehicule_model.dart';
-import 'package:bus_tracker/screens/home.dart';
-import 'package:bus_tracker/screens/notification.dart';
-import 'package:bus_tracker/screens/profile.dart';
-import 'package:bus_tracker/screens/setting.dart';
-import 'package:bus_tracker/utils/checkLocation.dart';
-import 'package:bus_tracker/widgets/constants.dart';
+import 'package:bus_tracker/core/models/vehicule_model.dart';
+import 'package:bus_tracker/admin/screens/admin_home.dart';
+import 'package:bus_tracker/admin/screens/notification.dart';
+import 'package:bus_tracker/admin/screens/profile.dart';
+import 'package:bus_tracker/admin/screens/setting.dart';
+import 'package:bus_tracker/core/utils/checkLocation.dart';
+import 'package:bus_tracker/core/widgets/constants.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -17,10 +17,10 @@ class VehicleTrackingPage extends StatefulWidget {
   const VehicleTrackingPage({super.key});
 
   @override
-  _VehicleTrackingPageState createState() => _VehicleTrackingPageState();
+  VehicleTrackingPageState createState() => VehicleTrackingPageState();
 }
 
-class _VehicleTrackingPageState extends State<VehicleTrackingPage> {
+class VehicleTrackingPageState extends State<VehicleTrackingPage> {
   int _selectedIndex = 1;
   LatLng? _userLocation;
   GoogleMapController? _mapController;
@@ -34,6 +34,7 @@ class _VehicleTrackingPageState extends State<VehicleTrackingPage> {
         await Geolocator.openLocationSettings();
         return;
       }
+
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
@@ -44,16 +45,25 @@ class _VehicleTrackingPageState extends State<VehicleTrackingPage> {
       if (permission == LocationPermission.deniedForever) {
         return;
       }
+
+      LocationSettings locationSettings = const LocationSettings(
+        accuracy: LocationAccuracy.high,
+      );
+
       Position position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high);
+        locationSettings: locationSettings,
+      );
+
       setState(() {
         _userLocation = LatLng(position.latitude, position.longitude);
       });
+
       _mapController?.animateCamera(
         CameraUpdate.newLatLng(_userLocation!),
       );
     } catch (e) {
-      print("Error getting location: $e");
+      // Replace print with proper logging in production
+      debugPrint("Error getting location: $e");
     }
   }
 
@@ -66,7 +76,7 @@ class _VehicleTrackingPageState extends State<VehicleTrackingPage> {
       case 0:
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const ActiveVehiclesPage()),
+          MaterialPageRoute(builder: (_) => const AdminHomePage()),
         );
         break;
       case 1:
@@ -84,30 +94,49 @@ class _VehicleTrackingPageState extends State<VehicleTrackingPage> {
     }
   }
 
-
+  bool _isLoading = true;
   List<Vehicle> _vehicles = [];
-  void _listenToUserVehicles() {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
 
-    _vehicleSubscription = FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
+ void _listenToUserVehicles() async {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) return;
+
+  final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+  final userData = userDoc.data();
+  if (userData == null) return;
+
+  final role = userData['role'];
+  final companyId = userData['companyId'];
+
+  Query vehiclesQuery;
+
+  if (role == 'admin') {
+    vehiclesQuery = FirebaseFirestore.instance
         .collection('vehicles')
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .listen((snapshot) {
-      final vehicles = snapshot.docs
-          .map((doc) => Vehicle.fromMap(doc.id, doc.data()))
-          .toList();
-
-      if (mounted) {
-        setState(() {
-          _vehicles = vehicles;
-        });
-      }
-    });
+        .where('companyId', isEqualTo: companyId)
+        .orderBy('createdAt', descending: true);
+  } else if (role == 'driver') {
+    vehiclesQuery = FirebaseFirestore.instance
+        .collection('vehicles')
+        .where('driverId', isEqualTo: user.uid)
+        .orderBy('createdAt', descending: true);
+  } else {
+    return;
   }
+
+  _vehicleSubscription = vehiclesQuery.snapshots().listen((snapshot) {
+    final vehicles = snapshot.docs
+        .map((doc) => Vehicle.fromMap(doc.id, doc.data() as Map<String, dynamic>))
+        .toList();
+
+    if (mounted) {
+      setState(() {
+        _vehicles = vehicles;
+        _isLoading = false;
+      });
+    }
+  });
+}
 
   @override
   void initState() {
@@ -120,12 +149,13 @@ class _VehicleTrackingPageState extends State<VehicleTrackingPage> {
       _onItemTapped(_selectedIndex);
     });
   }
-  
-@override
-void dispose() {
-  _vehicleSubscription?.cancel();
-  super.dispose();
-}
+
+  @override
+  void dispose() {
+    _vehicleSubscription?.cancel();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -163,7 +193,7 @@ void dispose() {
               backgroundImage: AssetImage('assets/images/zaz.png'),
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 18),
         ],
         backgroundColor: Colors.white,
         elevation: 0,
@@ -216,81 +246,86 @@ void dispose() {
                 flex: 2,
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: _vehicles.isEmpty
+                  child: _isLoading
                       ? const Center(child: CircularProgressIndicator())
-                      : ListView.builder(
-                          itemCount: _vehicles.length,
-                          itemBuilder: (context, index) {
-                            final vehicle = _vehicles[index];
-                            return Padding(
-                              padding:
-                                  EdgeInsets.only(top: index == 0 ? 16.0 : 0),
-                              child: GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    _selectedVehicle = vehicle;
-                                  });
-                                },
-                                child: Card(
-                                  margin: const EdgeInsets.only(bottom: 16),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(16),
-                                  ),
-                                  elevation: 4,
-                                  shadowColor: Colors.black.withAlpha((0.1 * 255).toInt()),
-                                  child: Padding(
-                                    padding: const EdgeInsets.all(16),
-                                    child: Row(
-                                      children: [
-                                        const SizedBox(width: 16),
-                                        ClipRRect(
-                                          borderRadius:
-                                              BorderRadius.circular(8),
-                                          child: vehicle.photosURL.isNotEmpty
-                                              ? Image.network(
-                                                  vehicle.photosURL[0],
-                                                  width: 40,
-                                                  height: 40,
-                                                  fit: BoxFit.cover,
-                                                )
-                                              : Image.asset(
-                                                  'assets/images/car1.png',
-                                                  width: 40,
-                                                  height: 40,
-                                                ),
-                                        ),
-                                        const SizedBox(width: 16),
-                                        Expanded(
-                                          child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                            children: [
-                                              Text(
-                                                vehicle.brand,
-                                                style: const TextStyle(
-                                                  fontSize: 18,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
+                      : _vehicles.isEmpty
+                          ? const Center(child: Text('No vehicles found.'))
+                          : ListView.builder(
+                              itemCount: _vehicles.length,
+                              itemBuilder: (context, index) {
+                                final vehicle = _vehicles[index];
+                                return Padding(
+                                  padding: EdgeInsets.only(
+                                      top: index == 0 ? 16.0 : 0),
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      setState(() {
+                                        _selectedVehicle = vehicle;
+                                      });
+                                    },
+                                    child: Card(
+                                      margin: const EdgeInsets.only(bottom: 16),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                      elevation: 4,
+                                      shadowColor: Colors.black
+                                          .withAlpha((0.1 * 255).toInt()),
+                                      child: Padding(
+                                        padding: const EdgeInsets.all(16),
+                                        child: Row(
+                                          children: [
+                                            const SizedBox(width: 16),
+                                            ClipRRect(
+                                              borderRadius:
+                                                  BorderRadius.circular(8),
+                                              child:
+                                                  vehicle.photosURL.isNotEmpty
+                                                      ? Image.network(
+                                                          vehicle.photosURL[0],
+                                                          width: 40,
+                                                          height: 40,
+                                                          fit: BoxFit.cover,
+                                                        )
+                                                      : Image.asset(
+                                                          'assets/images/car1.png',
+                                                          width: 40,
+                                                          height: 40,
+                                                        ),
+                                            ),
+                                            const SizedBox(width: 16),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    vehicle.brand,
+                                                    style: const TextStyle(
+                                                      fontSize: 18,
+                                                      fontWeight:
+                                                          FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    '${vehicle.type} • ${vehicle.year}',
+                                                    style: const TextStyle(
+                                                      color: Colors.grey,
+                                                      fontSize: 16,
+                                                    ),
+                                                  ),
+                                                ],
                                               ),
-                                              const SizedBox(height: 4),
-                                              Text(
-                                                '${vehicle.type} • ${vehicle.year}',
-                                                style: const TextStyle(
-                                                  color: Colors.grey,
-                                                  fontSize: 16,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
+                                            ),
+                                          ],
                                         ),
-                                      ],
+                                      ),
                                     ),
                                   ),
-                                ),
-                              ),
-                            );
-                          },
-                        ),
+                                );
+                              },
+                            ),
                 ),
               ),
             ],
@@ -408,9 +443,6 @@ void dispose() {
   }
 }
 
-
-
-
 // when you click on connect with a car this what you will see in the page!
 
 Widget _buildConnectionSheet(Vehicle vehicle) {
@@ -485,11 +517,13 @@ Widget _buildConnectionSheet(Vehicle vehicle) {
                         ),
                         Text(
                           'Type: ${vehicle.type}, Year: ${vehicle.year}',
-                          style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                          style:
+                              TextStyle(color: Colors.grey[600], fontSize: 12),
                         ),
                         Text(
                           'Matricule: ${vehicle.matricule}',
-                          style: TextStyle(color: Colors.grey[600], fontSize: 12),
+                          style:
+                              TextStyle(color: Colors.grey[600], fontSize: 12),
                         ),
                       ],
                     ),
@@ -598,8 +632,7 @@ void _showDriverConnectionSheet(BuildContext context, Vehicle vehicle) {
                 children: [
                   Text(vehicle.matricule,
                       style: const TextStyle(fontWeight: FontWeight.bold)),
-                  Text(vehicle.type,
-                      style: TextStyle(color: Colors.grey[600])),
+                  Text(vehicle.type, style: TextStyle(color: Colors.grey[600])),
                 ],
               ),
             ],

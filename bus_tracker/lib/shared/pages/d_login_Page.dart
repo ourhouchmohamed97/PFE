@@ -1,11 +1,14 @@
-import 'package:bus_tracker/screens/c_creatAccount_Page.dart';
+import 'package:bus_tracker/driver/driver_home.dart';
+import 'package:bus_tracker/driver/permission_waiting.dart';
+import 'package:bus_tracker/shared/pages/c_creatAccount_Page.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:bus_tracker/screens/e_forgotPassword_Page.dart';
-import 'package:bus_tracker/screens/home.dart';
-import 'package:bus_tracker/services/google_auth.dart';
-import 'package:bus_tracker/utils/validators/input_validator.dart';
-import 'package:bus_tracker/widgets/constants.dart';
+import 'package:bus_tracker/shared/pages/e_forgotPassword_Page.dart';
+import 'package:bus_tracker/admin/screens/admin_home.dart';
+import 'package:bus_tracker/core/services/google_auth.dart';
+import 'package:bus_tracker/core/utils/validators/input_validator.dart';
+import 'package:bus_tracker/core/widgets/constants.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -23,44 +26,63 @@ class _LoginPageState extends State<LoginPage> {
   String? _passwordError;
 
   void signUserIn() async {
-    if (!_formKey.currentState!.validate()) return;
+  if (!_formKey.currentState!.validate()) return;
 
-    setState(() {
-      _emailError = null;
-      _passwordError = null;
-    });
+  setState(() {
+    _emailError = null;
+    _passwordError = null;
+  });
 
-    try {
-      UserCredential userCredential =
-          await FirebaseAuth.instance.signInWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-      );
+  try {
+    UserCredential userCredential =
+        await FirebaseAuth.instance.signInWithEmailAndPassword(
+      email: _emailController.text.trim(),
+      password: _passwordController.text.trim(),
+    );
 
-      if (userCredential.user!.emailVerified) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Login successful!')),
-        );
+    User? user = userCredential.user;
 
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const ActiveVehiclesPage(),
-          ),
-        );
+    if (user != null && user.emailVerified) {
+      // 🔽 Get role from Firestore
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
+
+      if (userDoc.exists) {
+        String role = userDoc.get('role');
+
+        Widget targetPage;
+        if (role == 'admin') {
+          targetPage = const AdminHomePage(); // Replace with your admin screen
+        } else {
+          targetPage =  DriverWaitingForPermissionPage(); // Replace with your driver screen
+        }
+
+        if (mounted) {
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (_) => targetPage),
+          );
+        }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Please verify your email before logging in.'),
-          ),
-        );
-        await userCredential.user!.sendEmailVerification();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('A new verification email has been sent.'),
-          ),
+          const SnackBar(content: Text("User data not found.")),
         );
       }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please verify your email before logging in.'),
+        ),
+      );
+      await user?.sendEmailVerification();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('A new verification email has been sent.'),
+        ),
+      );
+    }
     } on FirebaseAuthException catch (e) {
       String errorMessage;
       switch (e.code) {
@@ -178,7 +200,7 @@ class _LoginPageState extends State<LoginPage> {
                                 context,
                                 MaterialPageRoute(
                                     builder: (context) =>
-                                        const ActiveVehiclesPage()),
+                                        const AdminHomePage()),
                               );
                             } else {
                               ScaffoldMessenger.of(context).showSnackBar(

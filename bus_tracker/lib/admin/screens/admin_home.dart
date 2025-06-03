@@ -1,22 +1,25 @@
-import 'package:bus_tracker/screens/add_vehicle.dart';
-import 'package:bus_tracker/screens/notification.dart';
-import 'package:bus_tracker/screens/profile.dart';
-import 'package:bus_tracker/screens/setting.dart';
-import 'package:bus_tracker/screens/view_vehicle.dart';
-import 'package:bus_tracker/widgets/constants.dart';
+import 'package:bus_tracker/admin/screens/add_vehicle.dart';
+import 'package:bus_tracker/admin/screens/notification.dart';
+import 'package:bus_tracker/admin/screens/profile.dart';
+import 'package:bus_tracker/admin/screens/setting.dart';
+import 'package:bus_tracker/admin/screens/view_vehicle.dart';
+import 'package:bus_tracker/core/widgets/constants.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:logger/logger.dart';
 
-class ActiveVehiclesPage extends StatefulWidget {
-  const ActiveVehiclesPage({super.key});
+class AdminHomePage extends StatefulWidget {
+  const AdminHomePage({super.key});
 
   @override
-  _ActiveVehiclesPageState createState() => _ActiveVehiclesPageState();
+  ActiveVehiclesPageState createState() => ActiveVehiclesPageState();
 }
 
-class _ActiveVehiclesPageState extends State<ActiveVehiclesPage> {
+final logger = Logger();
+
+class ActiveVehiclesPageState extends State<AdminHomePage> {
   int _selectedIndex = 0;
   LatLng? _userLocation;
   GoogleMapController? _mapController;
@@ -54,8 +57,14 @@ class _ActiveVehiclesPageState extends State<ActiveVehiclesPage> {
       }
       if (permission == LocationPermission.deniedForever) return;
 
+      LocationSettings locationSettings = const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 0,
+      );
+
       Position position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high);
+        locationSettings: locationSettings,
+      );
 
       setState(() {
         _userLocation = LatLng(position.latitude, position.longitude);
@@ -64,13 +73,10 @@ class _ActiveVehiclesPageState extends State<ActiveVehiclesPage> {
       _mapController?.animateCamera(
         CameraUpdate.newLatLng(_userLocation!),
       );
-    } catch (e) {
-      print("Error getting location: $e");
+    } catch (e, stackTrace) {
+      logger.e("Error getting location", e, stackTrace);
     }
   }
-
-
-  
 
   @override
   void initState() {

@@ -1,4 +1,4 @@
-import 'package:bus_tracker/screens/a_home_Page.dart';
+import 'package:bus_tracker/shared/pages/a_home_Page.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'firebase_options.dart';

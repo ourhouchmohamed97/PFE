@@ -1,8 +1,8 @@
-import 'package:bus_tracker/screens/d_login_Page.dart';
-import 'package:bus_tracker/screens/edit_profile.dart';
-import 'package:bus_tracker/screens/home.dart';
-import 'package:bus_tracker/screens/view_vehicle.dart';
-import 'package:bus_tracker/widgets/constants.dart';
+import 'package:bus_tracker/shared/pages/d_login_Page.dart';
+import 'package:bus_tracker/admin/screens/edit_profile.dart';
+import 'package:bus_tracker/admin/screens/admin_home.dart';
+import 'package:bus_tracker/admin/screens/view_vehicle.dart';
+import 'package:bus_tracker/core/widgets/constants.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -218,7 +218,7 @@ class _SettingsPageState extends State<SettingsPage> {
             case 0:
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (_) => const ActiveVehiclesPage()),
+                MaterialPageRoute(builder: (_) => const AdminHomePage()),
               );
               break;
             case 1:

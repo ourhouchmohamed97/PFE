@@ -1,26 +1,67 @@
+import 'package:bus_tracker/admin/screens/admin_home.dart';
+import 'package:bus_tracker/driver/driver_home.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:bus_tracker/screens/b_welcome_Page.dart';
+import 'package:bus_tracker/shared/pages/b_welcome_Page.dart';
 
 class Homepage extends StatefulWidget {
   const Homepage({super.key});
 
   @override
-  // ignore: library_private_types_in_public_api
-  _HomepageState createState() => _HomepageState();
+  HomepageState createState() => HomepageState();
 }
-
-class _HomepageState extends State<Homepage> {
+class HomepageState extends State<Homepage> {
   @override
   void initState() {
     super.initState();
-    // Navigate to the Welcome page after 4 seconds
-    Future.delayed(const Duration(seconds: 4), () {
+    _navigateUser();
+  }
+  
+
+  Future<void> _navigateUser() async {
+    await Future.delayed(const Duration(seconds: 4));
+
+    final user = FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      // No user signed in, go to welcome
+      if (!mounted) return;
       Navigator.pushReplacement(
-        // ignore: use_build_context_synchronously
         context,
         MaterialPageRoute(builder: (context) => const Welcome()),
       );
-    });
+    } else {
+      // User is signed in, fetch user role from Firestore
+      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+
+      if (!doc.exists || !doc.data()!.containsKey('role')) {
+        // Role not found or invalid user document
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const Welcome()),
+        );
+        return;
+      }
+
+      final role = doc['role'];
+
+      Widget nextPage;
+      if (role == 'admin') {
+        nextPage = const AdminHomePage();
+      } else if (role == 'driver') {
+        nextPage = const DriverHomePage();
+      } else {
+        nextPage = const Welcome(); // fallback
+      }
+
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => nextPage),
+      );
+    }
   }
 
  @override

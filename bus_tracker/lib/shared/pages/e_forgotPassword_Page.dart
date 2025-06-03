@@ -1,7 +1,7 @@
-import 'package:bus_tracker/utils/validators/input_validator.dart';
+import 'package:bus_tracker/core/utils/validators/input_validator.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:bus_tracker/widgets/constants.dart'; 
+import 'package:bus_tracker/core/widgets/constants.dart'; 
 
 class ForgotPasswordPage extends StatefulWidget {
   const ForgotPasswordPage({super.key});
