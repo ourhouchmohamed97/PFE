@@ -1,3 +1,4 @@
+
 import 'dart:async';
 import 'package:bus_tracker/core/models/vehicule_model.dart';
 import 'package:bus_tracker/admin/screens/admin_home.dart';
@@ -6,8 +7,12 @@ import 'package:bus_tracker/admin/screens/profile.dart';
 import 'package:bus_tracker/admin/screens/setting.dart';
 import 'package:bus_tracker/core/utils/checkLocation.dart';
 import 'package:bus_tracker/core/widgets/constants.dart';
+import 'package:bus_tracker/shared/pages/call.dart';
+import 'package:bus_tracker/shared/pages/chat.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
+
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -642,37 +647,43 @@ void _showDriverConnectionSheet(BuildContext context, Vehicle vehicle) {
           // Example placeholders:
           const Row(
             children: [
+
               Text("Driver: John Doe",
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
               SizedBox(width: 8),
               Icon(Icons.star, color: Colors.amber, size: 18),
               Text("4.8"),
+
+              
             ],
           ),
           const SizedBox(height: 20),
           Row(
             children: [
               Expanded(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey.shade300),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.chat, color: Colors.grey),
-                      SizedBox(width: 8),
-                      Text("Chat with driver"),
-                    ],
+                child: GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const ChatPage()),
+                    );
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.chat, color: Colors.grey),
+                        SizedBox(width: 8),
+                        Text("Chat with driver"),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              const CircleAvatar(
-                backgroundColor: Color(0xFFEFEFEF),
-                child: Icon(Icons.phone, color: Colors.black),
               ),
             ],
           ),
@@ -693,7 +704,10 @@ void _showDriverConnectionSheet(BuildContext context, Vehicle vehicle) {
               Expanded(
                 child: ElevatedButton(
                   onPressed: () {
-                    // Your call logic here
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => const CallPage()),
+                    );
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blue,
