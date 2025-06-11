@@ -1,3 +1,5 @@
+import 'package:bus_tracker/admin/screens/historique.dart';
+import 'package:bus_tracker/admin/screens/view_vehicle.dart';
 import 'package:bus_tracker/core/models/admin_model.dart';
 import 'package:bus_tracker/core/models/driver_model.dart';
 import 'package:bus_tracker/shared/pages/d_login_Page.dart';
@@ -21,6 +23,8 @@ class ProfilePage extends StatefulWidget {
 class _ProfilePageState extends State<ProfilePage> {
   UserModel? currentUser;
   bool isLoading = true;
+  String? companyName;
+ String? companyCode;
 
   @override
   void initState() {
@@ -28,32 +32,57 @@ class _ProfilePageState extends State<ProfilePage> {
     fetchUserData();
   }
 
-  Future<void> fetchUserData() async {
-    try {
-      final uid = FirebaseAuth.instance.currentUser?.uid;
-      if (uid == null) return;
+Future<void> fetchUserData() async {
+  try {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
 
-      final doc =
-          await FirebaseFirestore.instance.collection('users').doc(uid).get();
-      if (!doc.exists) return;
+    final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+    if (!userDoc.exists) return;
 
-      final data = doc.data()!;
-      final role = data['role'];
+    final userData = userDoc.data()!;
+    final role = userData['role'];
 
-      setState(() {
-        if (role == 'admin') {
-          currentUser = AdminUser.fromMap(data, uid); // 👈 your Admin model
-        } else if (role == 'driver') {
-          currentUser = DriverUser.fromMap(data, uid); // 👈 your Driver model
-        } else {
-          currentUser = UserModel.fromMap(data, uid); // fallback
+    UserModel? user;
+
+    String? fetchedCompanyName;
+    String? fetchedCompanyCode;
+
+    if (role == 'admin') {
+      final companyId = userData['companyId'];
+
+      if (companyId != null) {
+        final companyDoc = await FirebaseFirestore.instance.collection('companies').doc(companyId).get();
+        print('Company document exists: ${companyDoc.exists}');
+        print('Company data: ${companyDoc.data()}');
+        if (companyDoc.exists) {
+          final companyData = companyDoc.data();
+          fetchedCompanyName = companyData?['companyName'];
+          fetchedCompanyCode = companyData?['companyCode'];
         }
-        isLoading = false;
-      });
-    } catch (e) {
-      print('Error fetching user data: $e');
+      }
+
+      user = AdminUser.fromMap({
+        ...userData,
+        'companyName': fetchedCompanyName,
+        'companyCode': fetchedCompanyCode,
+      }, uid);
+    } else if (role == 'driver') {
+      user = DriverUser.fromMap(userData, uid);
+    } else {
+      user = UserModel.fromMap(userData, uid);
     }
+
+    setState(() {
+      currentUser = user;
+      companyName = fetchedCompanyName;
+      companyCode = fetchedCompanyCode;
+      isLoading = false;
+    });
+  } catch (e) {
+    print('Error fetching user data: $e');
   }
+}
 
   String _getRoleName(String? role) {
     switch (role) {
@@ -104,10 +133,16 @@ class _ProfilePageState extends State<ProfilePage> {
               );
               break;
             case 1:
-              // TODO: Vehicles page
+             Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const VehicleTrackingPage()),
+              );
               break;
             case 2:
-              // TODO: History page
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const HistoryPage()),
+              );
               break;
             case 3:
               Navigator.pushReplacement(
@@ -214,47 +249,66 @@ class _ProfilePageState extends State<ProfilePage> {
                 padding:
                     const EdgeInsets.symmetric(vertical: 22, horizontal: 24),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _InfoRow(
-                      icon: Icons.email,
-                      title: 'Email Address',
-                      value: currentUser!.email,
-                    ),
-                    const SizedBox(height: 12),
-                    const Divider(color: Colors.grey),
-                    const SizedBox(height: 12),
-                    _InfoRow(
-                      icon: Icons.phone,
-                      title: 'Phone Number',
-                      value: currentUser!.phone ?? 'Not provided',
-                    ),
-                    const SizedBox(height: 12),
-                    const Divider(color: Colors.grey),
-                    const SizedBox(height: 12),
-                    _InfoRow(
-                      icon: Icons.calendar_today,
-                      title: 'Membership Date',
-                      value: currentUser!.createdAt != null
-                          ? 'Joined: ${DateFormat.yMMMMd().format(currentUser!.createdAt!)}'
-                          : 'Join date not available',
-                    ),
-                    const SizedBox(height: 12),
-                    const Divider(color: Colors.grey),
-                    const SizedBox(height: 12),
-                    _InfoRow(
-                      icon: Icons.person_outline,
-                      title: 'Account Type',
-                      value: currentUser != null
-                          ? (currentUser!.role == 'admin'
-                              ? 'Administrator'
-                              : currentUser!.role == 'driver'
-                                  ? 'Driver'
-                                  : 'User')
-                          : 'Unknown',
-                    ),
-                  ],
-                ),
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _InfoRow(
+                        icon: Icons.email,
+                        title: 'Email Address',
+                        value: currentUser!.email,
+                      ),
+                      const SizedBox(height: 12),
+                      const Divider(color: Colors.grey),
+                      const SizedBox(height: 12),
+                      _InfoRow(
+                        icon: Icons.phone,
+                        title: 'Phone Number',
+                        value: currentUser!.phone ?? 'Not provided',
+                      ),
+                      const SizedBox(height: 12),
+                      const Divider(color: Colors.grey),
+                      const SizedBox(height: 12),
+                      _InfoRow(
+                        icon: Icons.calendar_today,
+                        title: 'Membership Date',
+                        value: currentUser!.createdAt != null
+                            ? 'Joined: ${DateFormat.yMMMMd().format(currentUser!.createdAt!)}'
+                            : 'Join date not available',
+                      ),
+                      const SizedBox(height: 12),
+                      const Divider(color: Colors.grey),
+                      const SizedBox(height: 12),
+                      _InfoRow(
+                        icon: Icons.person_outline,
+                        title: 'Account Type',
+                        value: currentUser != null
+                            ? (currentUser!.role == 'admin'
+                                ? 'Administrator'
+                                : currentUser!.role == 'driver'
+                                    ? 'Driver'
+                                    : 'User')
+                            : 'Unknown',
+                      ),
+                      if (currentUser!.role == 'admin') ...[
+                        const SizedBox(height: 12),
+                        const Divider(color: Colors.grey),
+                        const SizedBox(height: 12),
+                      if (currentUser!.role == 'admin') ...[
+  const SizedBox(height: 12),
+  
+  _InfoRow(
+    icon: Icons.business,
+    title: 'Company Name',
+    value: companyName ?? 'Loading...',
+  ),
+  const SizedBox(height: 12),
+  _InfoRow(
+    icon: Icons.code,
+    title: 'Company Code',
+    value: companyCode ?? 'Loading...',
+  ),
+]
+                      ]
+                    ]),
               ),
             ),
 

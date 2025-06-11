@@ -1,25 +1,23 @@
 import 'package:bus_tracker/admin/screens/add_vehicle.dart';
+import 'package:bus_tracker/admin/screens/historique.dart';
 import 'package:bus_tracker/admin/screens/notification.dart';
 import 'package:bus_tracker/admin/screens/profile.dart';
 import 'package:bus_tracker/admin/screens/setting.dart';
 import 'package:bus_tracker/admin/screens/view_vehicle.dart';
 import 'package:bus_tracker/core/widgets/constants.dart';
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:logger/logger.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class AdminHomePage extends StatefulWidget {
   const AdminHomePage({super.key});
 
   @override
-  ActiveVehiclesPageState createState() => ActiveVehiclesPageState();
+  _ActiveVehiclesPageState createState() => _ActiveVehiclesPageState();
 }
 
-final logger = Logger();
-
-class ActiveVehiclesPageState extends State<AdminHomePage> {
+class _ActiveVehiclesPageState extends State<AdminHomePage> {
   int _selectedIndex = 0;
   LatLng? _userLocation;
   GoogleMapController? _mapController;
@@ -33,6 +31,13 @@ class ActiveVehiclesPageState extends State<AdminHomePage> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => const VehicleTrackingPage()),
+      );
+    }
+    
+    if (index == 2) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const HistoryPage()),
       );
     }
     if (index == 3) {
@@ -57,14 +62,8 @@ class ActiveVehiclesPageState extends State<AdminHomePage> {
       }
       if (permission == LocationPermission.deniedForever) return;
 
-      LocationSettings locationSettings = const LocationSettings(
-        accuracy: LocationAccuracy.high,
-        distanceFilter: 0,
-      );
-
       Position position = await Geolocator.getCurrentPosition(
-        locationSettings: locationSettings,
-      );
+          desiredAccuracy: LocationAccuracy.high);
 
       setState(() {
         _userLocation = LatLng(position.latitude, position.longitude);
@@ -73,8 +72,8 @@ class ActiveVehiclesPageState extends State<AdminHomePage> {
       _mapController?.animateCamera(
         CameraUpdate.newLatLng(_userLocation!),
       );
-    } catch (e, stackTrace) {
-      logger.e("Error getting location", e, stackTrace);
+    } catch (e) {
+      print("Error getting location: $e");
     }
   }
 
@@ -123,7 +122,7 @@ class ActiveVehiclesPageState extends State<AdminHomePage> {
               );
             },
             child: const CircleAvatar(
-              backgroundImage: AssetImage('assets/images/zaz.png'),
+              backgroundImage: AssetImage('assets/images/profile.png'),
             ),
           ),
           const SizedBox(width: 16),

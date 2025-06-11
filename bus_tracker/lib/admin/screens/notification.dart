@@ -58,7 +58,7 @@ class NotificationsPageState extends State<NotificationsPage> {
         companyId = fetchedCompanyId;
       });
 
-      await _loadNotifications();
+      _listenNotifications(); // now filters by user email
     } catch (e) {
       print('Error loading companyId or notifications: $e');
       setState(() {
@@ -67,22 +67,23 @@ class NotificationsPageState extends State<NotificationsPage> {
     }
   }
 
-  Future<void> _loadNotifications() async {
-    if (companyId == null) return;
+  void _listenNotifications() {
+    final user = _auth.currentUser;
+    if (companyId == null || user == null) return;
 
-    final querySnapshot = await _firestore
+    _firestore
         .collection('notifications')
-        .where('companyId', isEqualTo: companyId)
+        .where('targetUserEmail', isEqualTo: user.email) // <-- filter by current admin
         .orderBy('timestamp', descending: true)
-        .get();
-
-    final notifications = querySnapshot.docs
-        .map((doc) => NotificationItem.fromFirestore(doc))
-        .toList();
-
-    setState(() {
-      _notifications = notifications;
-      _isLoading = false;
+        .snapshots()
+        .listen((snapshot) {
+      final notifications = snapshot.docs
+          .map((doc) => NotificationItem.fromFirestore(doc))
+          .toList();
+      setState(() {
+        _notifications = notifications;
+        _isLoading = false;
+      });
     });
   }
 
@@ -124,8 +125,6 @@ class NotificationsPageState extends State<NotificationsPage> {
 
   Future<void> _approveDriver(NotificationItem notification) async {
     try {
-      // Extract driver email or UID from notification description or store it in notification doc
-      // For example, if you stored the driver's UID in notification:
       final driverEmail = notification.driverEmail;
 
       if (driverEmail == null) {
@@ -133,53 +132,36 @@ class NotificationsPageState extends State<NotificationsPage> {
         return;
       }
 
-      // Query driver user document by email or uid
-      final driverQuery = await _firestore
+      final adminsQuery = await _firestore
           .collection('users')
-          .where('email', isEqualTo: driverEmail)
-          .limit(1)
+          .where('companyId', isEqualTo: companyId)
+          .where('role', isEqualTo: 'admin')
           .get();
 
-      if (driverQuery.docs.isEmpty) return;
+      for (var adminDoc in adminsQuery.docs) {
+        final adminEmail = adminDoc.data()['email'];
 
-      final driverDocId = driverQuery.docs.first.id;
-
-      // Update driver's status
-      await _firestore.collection('users').doc(driverDocId).update({
-        'status': 'approved',
-      });
-
-      // Mark notification as read or delete it
-      await _firestore
-          .collection('notifications')
-          .doc(notification.docId)
-          .update({
-        'isRead': true,
-      });
-
-      setState(() {
-        notification.isRead = true;
-      });
-
-      // Optionally send notification to driver about approval
-      await _firestore.collection('notifications').add({
-        'title': 'Driver Account Approved',
-        'description': 'Your driver account has been approved by the admin.',
-        'timestamp': FieldValue.serverTimestamp(),
-        'isRead': false,
-        'targetUserEmail': driverEmail,
-        'iconData': Icons.thumb_up.codePoint,
-        'iconColor': 0xFF4CAF50, // Green
-        'iconFontFamily': Icons.thumb_up.fontFamily,
-        'iconFontPackage': Icons.thumb_up.fontPackage,
-      });
+        await _firestore.collection('notifications').add({
+          'title': 'Driver Account Approved',
+          'description': 'Driver account ($driverEmail) has been approved.',
+          'timestamp': FieldValue.serverTimestamp(),
+          'isRead': false,
+          'targetUserEmail': adminEmail,
+          'iconData': Icons.thumb_up.codePoint,
+          'iconColor': 0xFF4CAF50,
+          'iconFontFamily': Icons.thumb_up.fontFamily,
+          'iconFontPackage': Icons.thumb_up.fontPackage,
+          'driverEmail': driverEmail,
+          'companyId': companyId,
+        });
+      }
     } catch (e) {
       print('Error approving driver: $e');
     }
   }
 
   Future<void> _rejectDriver(NotificationItem notification) async {
-    // Similar to approve but set status to 'rejected' or delete user, etc.
+    // Add rejection logic here
   }
 
   @override
@@ -227,8 +209,14 @@ class NotificationsPageState extends State<NotificationsPage> {
                     itemBuilder: (context, index) {
                       final notification = filteredNotifications[index];
                       return ListTile(
-                        leading: Icon(notification.iconData as IconData?,
-                            color: notification.iconColor),
+                        leading: Icon(
+                          IconData(
+                            notification.iconData as int,
+                            fontFamily: notification.iconFontFamily,
+                            fontPackage: notification.iconFontPackage,
+                          ),
+                          color: notification.iconColor,
+                        ),
                         title: Text(notification.title),
                         subtitle: Text(
                           '${notification.description}\n${_formatTimestamp(notification.timestamp)}',

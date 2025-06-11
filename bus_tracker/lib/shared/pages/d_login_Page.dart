@@ -26,63 +26,74 @@ class _LoginPageState extends State<LoginPage> {
   String? _passwordError;
 
   void signUserIn() async {
-  if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) return;
 
-  setState(() {
-    _emailError = null;
-    _passwordError = null;
-  });
+    setState(() {
+      _emailError = null;
+      _passwordError = null;
+    });
 
-  try {
-    UserCredential userCredential =
-        await FirebaseAuth.instance.signInWithEmailAndPassword(
-      email: _emailController.text.trim(),
-      password: _passwordController.text.trim(),
-    );
+    try {
+      UserCredential userCredential =
+          await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
 
-    User? user = userCredential.user;
+      User? user = userCredential.user;
 
-    if (user != null && user.emailVerified) {
-      // 🔽 Get role from Firestore
-      DocumentSnapshot userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
+      if (user != null && user.emailVerified) {
+        // 🔽 Get role from Firestore
+        DocumentSnapshot userDoc = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .get();
 
-      if (userDoc.exists) {
-        String role = userDoc.get('role');
+        if (userDoc.exists) {
+          String role = userDoc.get('role');
 
-        Widget targetPage;
-        if (role == 'admin') {
-          targetPage = const AdminHomePage(); // Replace with your admin screen
+          Widget targetPage;
+
+          if (role == 'admin') {
+            targetPage = const AdminHomePage();
+          } else if (role == 'driver') {
+            final status = userDoc.get('status') ?? 'pending';
+            if (status == 'approved') {
+              targetPage = const DriverHomePage();
+            } else {
+              targetPage = DriverWaitingForPermissionPage();
+            }
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("Unknown role.")),
+            );
+            return;
+          }
+
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (_) => targetPage),
+            );
+          }
         } else {
-          targetPage =  DriverWaitingForPermissionPage(); // Replace with your driver screen
-        }
-
-        if (mounted) {
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (_) => targetPage),
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("User data not found.")),
           );
         }
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("User data not found.")),
+          const SnackBar(
+            content: Text('Please verify your email before logging in.'),
+          ),
+        );
+        await user?.sendEmailVerification();
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('A new verification email has been sent.'),
+          ),
         );
       }
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please verify your email before logging in.'),
-        ),
-      );
-      await user?.sendEmailVerification();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('A new verification email has been sent.'),
-        ),
-      );
-    }
     } on FirebaseAuthException catch (e) {
       String errorMessage;
       switch (e.code) {
@@ -195,24 +206,52 @@ class _LoginPageState extends State<LoginPage> {
                             if (user.emailVerified ||
                                 user.providerData
                                     .any((p) => p.providerId == 'google.com')) {
-                              // Navigate to homepage
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(
-                                    builder: (context) =>
-                                        const AdminHomePage()),
-                              );
+                              // Fetch role from Firestore
+                              final userDoc = await FirebaseFirestore.instance
+                                  .collection('users')
+                                  .doc(user.uid)
+                                  .get();
+                              if (userDoc.exists) {
+                                String role = userDoc.get('role');
+                                Widget targetPage;
+                                if (role == 'admin') {
+                                  targetPage = const AdminHomePage();
+                                } else if (role == 'driver') {
+                                  final status =
+                                      userDoc.get('status') ?? 'pending';
+                                  if (status == 'approved') {
+                                    targetPage = const DriverHomePage();
+                                  } else {
+                                    targetPage =
+                                        DriverWaitingForPermissionPage();
+                                  }
+                                } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                          content: Text("Unknown role.")));
+                                  return;
+                                }
+                                if (mounted) {
+                                  Navigator.pushReplacement(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (_) => targetPage));
+                                }
+                              } else {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                        content: Text("User data not found.")));
+                              }
                             } else {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                    content: Text('Please verify your email.')),
-                              );
+                                  const SnackBar(
+                                      content:
+                                          Text('Please verify your email.')));
                             }
                           } else {
                             ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                  content: Text('Google sign-in failed.')),
-                            );
+                                const SnackBar(
+                                    content: Text('Google sign-in failed.')));
                           }
                         },
                       ),

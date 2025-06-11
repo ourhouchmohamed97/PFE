@@ -270,7 +270,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                                     : (imageUrl.isNotEmpty
                                         ? NetworkImage(imageUrl)
                                             as ImageProvider
-                                        : const AssetImage("assets/profile_placeholder.png")),
+                                        : const AssetImage("assets/profile.png")),
                               ),
                             ),
                             Positioned(

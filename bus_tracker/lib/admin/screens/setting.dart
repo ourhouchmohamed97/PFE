@@ -3,6 +3,7 @@ import 'package:bus_tracker/admin/screens/edit_profile.dart';
 import 'package:bus_tracker/admin/screens/admin_home.dart';
 import 'package:bus_tracker/admin/screens/view_vehicle.dart';
 import 'package:bus_tracker/core/widgets/constants.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
@@ -18,13 +19,19 @@ class _SettingsPageState extends State<SettingsPage> {
   bool _pushNotificationsEnabled = true;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
+  Future<String> getUserName() async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return 'Unknown User';
+    final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+    return doc.data()?['name'] ?? 'No Name';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       body: Stack(
         children: [
-          // 🔵 Blue Header
           Container(
             height: 150,
             color: blueColor,
@@ -44,44 +51,50 @@ class _SettingsPageState extends State<SettingsPage> {
             ),
           ),
 
-          // 🧾 Main Content
+          // Main Content
           Padding(
             padding: const EdgeInsets.only(top: 100),
             child: ListView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(30),
               children: [
-                // 👤 Profile Section
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: const [
-                      BoxShadow(
-                          color: Colors.black12,
-                          blurRadius: 6,
-                          offset: Offset(0, 2)),
-                    ],
-                  ),
-                  child: const Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 30,
-                        backgroundImage:
-                            AssetImage('assets/images/profile.png'),
+                // 👤 Dynamic Profile Section
+                FutureBuilder<String>(
+                  future: getUserName(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+                    return Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(50),
+                        boxShadow: const [
+                          BoxShadow(
+                              color: Colors.black12,
+                              blurRadius: 6,
+                              offset: Offset(0, 2)),
+                        ],
                       ),
-                      SizedBox(width: 16),
-                      Text(
-                        'mohamed ourhouch',
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.bold),
+                      child: Row(
+                        children: [
+                          const CircleAvatar(
+                            radius: 30,
+                            backgroundImage: AssetImage('assets/images/profile.png'),
+                          ),
+                          const SizedBox(width: 16),
+                          Text(
+                            snapshot.data ?? 'No Name',
+                            style: const TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.bold),
+                          ),
+                        ],
                       ),
-                    ],
-                  ),
+                    );
+                  },
                 ),
 
                 const SizedBox(height: 30),
-
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 8.0),
                   child: Text('Account Settings',
@@ -99,26 +112,8 @@ class _SettingsPageState extends State<SettingsPage> {
                     );
                   },
                 ),
-                _buildListTile(
-                  'Change password',
-                  // onTap: () {
-                  //   Navigator.push(
-                  //     context,
-                  //     MaterialPageRoute(
-                  //         builder: (context) => const ChangePasswordPage()),
-                  //   );
-                  // },
-                ),
-                _buildListTile(
-                  'Add a payment method',
-                  // onTap: () {
-                  //   Navigator.push(
-                  //     context,
-                  //     MaterialPageRoute(
-                  //         builder: (context) => const AddPaymentMethodPage()),
-                  //   );
-                  // },
-                ),
+                _buildListTile('Change password'),
+                _buildListTile('Add a payment method'),
 
                 SwitchListTile(
                   title: const Text('Push notifications'),
@@ -136,7 +131,6 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
 
                 const Divider(),
-
                 const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 8.0),
                   child: Text('More',
@@ -153,23 +147,23 @@ class _SettingsPageState extends State<SettingsPage> {
                   onPressed: () async {
                     try {
                       await _auth.signOut();
-                      // ignore: use_build_context_synchronously
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content:
-                                Text('You have been signed out successfully!')),
-                      );
-                      Navigator.pushReplacement(
-                        // ignore: use_build_context_synchronously
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => const LoginPage()),
-                      );
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content:
+                                  Text('You have been signed out successfully!')),
+                        );
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(builder: (context) => const LoginPage()),
+                        );
+                      }
                     } catch (e) {
-                      // ignore: use_build_context_synchronously
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error signing out: $e')),
-                      );
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Error signing out: $e')),
+                        );
+                      }
                     }
                   },
                   icon: const Icon(Icons.logout, size: 20, color: Colors.white),
@@ -182,19 +176,16 @@ class _SettingsPageState extends State<SettingsPage> {
                     ),
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: blueColor, // Vibrant blue background
+                    backgroundColor: blueColor,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
-                      borderRadius:
-                          BorderRadius.circular(12), // Rounded corners
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 16), // Vertical padding
-                    elevation: 4, // Shadow effect
-                    // ignore: deprecated_member_use
-                    shadowColor: Colors.black.withOpacity(0.2), // Subtle shadow
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    elevation: 4,
+                    shadowColor: Colors.black.withOpacity(0.2),
                   ),
-                )
+                ),
               ],
             ),
           ),
@@ -222,14 +213,15 @@ class _SettingsPageState extends State<SettingsPage> {
               );
               break;
             case 1:
-              Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const VehicleTrackingPage()));
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) => const VehicleTrackingPage()),
+              );
               break;
             case 2:
-              // Replace with your History page
-              // Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const HistoryPage()));
+              // History page (implement later)
               break;
             case 3:
-              // Already on Settings, do nothing or pop to top
               break;
           }
         },

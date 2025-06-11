@@ -7,11 +7,11 @@ class NotificationItem {
   final String description;
   final DateTime timestamp;
   bool isRead;
-  final int iconData;
+  final IconData iconData;      // <-- Ici IconData au lieu de int
   final Color iconColor;
   final String? iconFontFamily;
   final String? iconFontPackage;
-  final String? driverEmail;  // <-- add this field
+  final String? driverEmail;
 
   NotificationItem({
     required this.docId,
@@ -19,15 +19,22 @@ class NotificationItem {
     required this.description,
     required this.timestamp,
     required this.isRead,
-    required this.iconData,
+    required this.iconData,      
     required this.iconColor,
     this.iconFontFamily,
     this.iconFontPackage,
-    this.driverEmail,   // <-- add to constructor
+    this.driverEmail,
   });
 
   factory NotificationItem.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+
+    // Construire l'IconData à partir des données Firestore
+    IconData icon = IconData(
+      data['iconData'] ?? Icons.notifications.codePoint,
+      fontFamily: data['iconFontFamily'] ?? Icons.notifications.fontFamily,
+      fontPackage: data['iconFontPackage'],
+    );
 
     return NotificationItem(
       docId: doc.id,
@@ -35,11 +42,11 @@ class NotificationItem {
       description: data['description'] ?? '',
       timestamp: (data['timestamp'] as Timestamp).toDate(),
       isRead: data['isRead'] ?? false,
-      iconData: data['iconData'] ?? 0,
+      iconData: icon,
       iconColor: Color(data['iconColor'] ?? 0xFF000000),
       iconFontFamily: data['iconFontFamily'],
       iconFontPackage: data['iconFontPackage'],
-      driverEmail: data['driverEmail'],  // <-- extract here
+      driverEmail: data['driverEmail'],
     );
   }
 }

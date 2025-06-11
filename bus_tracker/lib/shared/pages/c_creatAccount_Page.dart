@@ -3,10 +3,12 @@ import 'package:bus_tracker/shared/pages/f_verifyEmail.dart';
 import 'package:bus_tracker/core/services/auth_service.dart';
 import 'package:bus_tracker/core/utils/validators/input_validator.dart';
 import 'package:bus_tracker/core/widgets/constants.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 
 enum UserRole { admin, driver }
+enum AdminType { firstAdmin, anotherAdmin }
 
 class CreateAccountScreen extends StatefulWidget {
   const CreateAccountScreen({super.key});
@@ -23,16 +25,15 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   final _phoneNumberController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _companyCodeController = TextEditingController();
 
   // Admin-specific
   final _companyNameController = TextEditingController();
   String? _selectedBusinessType;
 
-  // Driver-specific
-  final _adminEmailController = TextEditingController();
-
   final AuthService _authService = AuthService();
   UserRole? _role;
+  AdminType? _adminType;
 
   final List<String> _businessTypes = [
     'Car Rental Agency',
@@ -48,6 +49,12 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       _showToast("Please select a role");
       return;
     }
+
+    if (_role == UserRole.admin && _adminType == null) {
+      _showToast("Please specify if you're the first or another admin");
+      return;
+    }
+
     if (_formKey.currentState!.validate()) {
       if (_passwordController.text != _confirmPasswordController.text) {
         _showToast("Passwords do not match");
@@ -60,14 +67,31 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
         phoneNumber: _phoneNumberController.text.trim(),
         password: _passwordController.text,
         role: _role == UserRole.admin ? 'admin' : 'driver',
-        adminEmail:
-            _role == UserRole.driver ? _adminEmailController.text.trim() : null,
+        companyCode: _role == UserRole.driver || _adminType == AdminType.anotherAdmin
+            ? _companyCodeController.text.trim()
+            : null,
         companyName:
-            _role == UserRole.admin ? _companyNameController.text.trim() : null,
-        businessType: _role == UserRole.admin ? _selectedBusinessType : null,
+            _role == UserRole.admin && _adminType == AdminType.firstAdmin
+                ? _companyNameController.text.trim()
+                : null,
+        businessType:
+            _role == UserRole.admin && _adminType == AdminType.firstAdmin
+                ? _selectedBusinessType
+                : null,
       );
 
       if (error == null) {
+        if (_role == UserRole.driver) {
+        try {
+          await sendDriverApprovalRequest(
+            companyId: _companyCodeController.text.trim(),
+            driverEmail: _emailController.text.trim(),
+          );
+        } catch (e) {
+          // Handle error sending notification, but don't block navigation
+          print('Failed to send approval request notification: $e');
+        }
+      }
         _showToast("Verification email sent. Please check your email.");
         Navigator.pushReplacement(
           context,
@@ -80,6 +104,25 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       }
     }
   }
+  
+
+  Future<void> sendDriverApprovalRequest({
+  required String companyId,
+  required String driverEmail,
+}) async {
+  final notificationsRef = FirebaseFirestore.instance.collection('notifications');
+
+  await notificationsRef.add({
+    'companyId': companyId,
+    'driverEmail': driverEmail,
+    'title': 'Driver Approval Request',
+    'description': '$driverEmail has requested driver access approval.',
+    'timestamp': FieldValue.serverTimestamp(),
+    'isRead': false,
+    'type': 'driverApprovalRequest',
+  });
+}
+
 
   void _showToast(String message) {
     Fluttertoast.showToast(
@@ -155,7 +198,10 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                       value: UserRole.admin,
                       groupValue: _role,
                       onChanged: (UserRole? value) {
-                        setState(() => _role = value);
+                        setState(() {
+                          _role = value;
+                          _adminType = null; // reset when role changes
+                        });
                       },
                     ),
                   ),
@@ -165,7 +211,10 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                       value: UserRole.driver,
                       groupValue: _role,
                       onChanged: (UserRole? value) {
-                        setState(() => _role = value);
+                        setState(() {
+                          _role = value;
+                          _adminType = null;
+                        });
                       },
                     ),
                   ),
@@ -173,8 +222,35 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
               ),
               const SizedBox(height: 20),
 
-              // 🟧 Admin-specific fields
+              // 🟪 Admin Type Selection (Only for Admins)
               if (_role == UserRole.admin) ...[
+                const Text("Are you the first admin or joining an existing company?",
+                    style: TextStyle(fontWeight: FontWeight.bold)),
+                ListTile(
+                  title: const Text('First Admin (Create a new company)'),
+                  leading: Radio<AdminType>(
+                    value: AdminType.firstAdmin,
+                    groupValue: _adminType,
+                    onChanged: (AdminType? value) {
+                      setState(() => _adminType = value);
+                    },
+                  ),
+                ),
+                ListTile(
+                  title: const Text('Another Admin (Join existing company)'),
+                  leading: Radio<AdminType>(
+                    value: AdminType.anotherAdmin,
+                    groupValue: _adminType,
+                    onChanged: (AdminType? value) {
+                      setState(() => _adminType = value);
+                    },
+                  ),
+                ),
+              ],
+              const SizedBox(height: 20),
+
+              // 🟧 Admin Fields
+              if (_role == UserRole.admin && _adminType == AdminType.firstAdmin) ...[
                 CustomTextField(
                   labelText: 'Company Name',
                   controller: _companyNameController,
@@ -199,14 +275,20 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                   validator: (value) =>
                       value == null ? 'Please select a business type' : null,
                 ),
+              ] else if (_role == UserRole.admin && _adminType == AdminType.anotherAdmin) ...[
+                CustomTextField(
+                  labelText: "Company Code",
+                  controller: _companyCodeController,
+                  validator: FieldValidator.validateNotEmpty,
+                ),
               ],
 
-              // 🟨 Driver-specific fields
+              // 🟨 Driver-specific
               if (_role == UserRole.driver)
                 CustomTextField(
-                  labelText: "Admin Email",
-                  controller: _adminEmailController,
-                  validator: FieldValidator.validateEmail,
+                  labelText: "Company Code",
+                  controller: _companyCodeController,
+                  validator: FieldValidator.validateNotEmpty,
                 ),
 
               const SizedBox(height: 30),

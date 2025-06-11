@@ -2,9 +2,9 @@ import 'package:bus_tracker/core/models/user_model.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class AdminUser extends UserModel {
-  final String companyName;
-  final String companyType;
-
+  final String companyId; // Only keep this
+   String? companyName;
+   String? companyCode;
   AdminUser({
     required super.uid,
     required super.name,
@@ -13,8 +13,9 @@ class AdminUser extends UserModel {
     super.phone,
     super.profilePic,
     super.createdAt,
-    required this.companyName,
-    required this.companyType,
+    required this.companyId,
+    this.companyName,
+    this.companyCode,
   });
 
   factory AdminUser.fromMap(Map<String, dynamic> map, String uid) {
@@ -28,18 +29,18 @@ class AdminUser extends UserModel {
       createdAt: map['createdAt'] != null
           ? (map['createdAt'] as Timestamp).toDate()
           : null,
-      companyName: map['companyName'] ?? '',
-      companyType: map['companyType'] ?? '',
+      companyId: map['companyId'] ?? '',
     );
   }
+
+ 
 
   @override
   Map<String, dynamic> toMap() {
     final baseMap = super.toMap();
     return {
       ...baseMap,
-      'companyName': companyName,
-      'companyType': companyType,
+      'companyId': companyId,
     };
   }
 }
