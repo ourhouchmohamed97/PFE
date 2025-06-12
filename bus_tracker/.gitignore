@@ -50,3 +50,12 @@ app.*.map.json
 
 # Ignore Gradle build output directory
 build
+# Ignore the large dictionary file
+dico_8digits.txt
+
+# Ignore all JAR files
+*.jar
+
+# Ignore Gradle wrapper caches
+bus_tracker/caches/
+bus_tracker/wrapper/dists/
