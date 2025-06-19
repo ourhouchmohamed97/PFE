@@ -1,4 +1,5 @@
 import 'package:bus_tracker/core/models/vehicule_model.dart';
+import 'package:bus_tracker/core/widgets/assign_driver_dropdown.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -21,14 +22,16 @@ class AddCarPage extends StatefulWidget {
 class _AddCarPageState extends State<AddCarPage> {
   final _formKey = GlobalKey<FormState>();
   final currentYear = DateTime.now().year;
-
+  List<String> uploadedPhotos = [];
   final TextEditingController _modelController = TextEditingController();
   final TextEditingController _matriculeController = TextEditingController();
   final TextEditingController _brandController = TextEditingController();
-
+  String? companyId;
   final TextEditingController _numberController = TextEditingController();
   final TextEditingController _arabicLetterController = TextEditingController();
   final TextEditingController _provinceController = TextEditingController();
+  final TextEditingController _assignedDriverIdController =
+      TextEditingController();
 
   String? _selectedBrand;
   String? _selectedModel;
@@ -44,104 +47,143 @@ class _AddCarPageState extends State<AddCarPage> {
     _numberController.dispose();
     _arabicLetterController.dispose();
     _provinceController.dispose();
+    _assignedDriverIdController.dispose();
     super.dispose();
   }
 
+
   // Save car data
-  Future<void> _saveCar() async {
-    if (!_formKey.currentState!.validate()) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please fill in all fields')),
-        );
-      }
-      return;
-    }
-
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('You must be logged in to add a car')),
-        );
-      }
-      return;
-    }
-
-    // Create Firestore doc ref to get vehicleId
-    final vehicleRef = FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .collection('vehicles')
-        .doc();
-
-    final vehicleId = vehicleRef.id;
-
-    // Upload image to Supabase
-    final imageUrl = await pickAndUploadCarPhoto(vehicleId);
-
-    // Create Vehicle instance
-    final vehicle = Vehicle(
-      vid: vehicleId,
-      ownerId: user.uid,
-      brand: _selectedBrand!,
-      model: _modelController.text.trim(),
-      type: _selectedType!,
-      year: _selectedYear!,
-      matricule: _matriculeController.text.trim(),
-      createdAt: DateTime.now(),
-      photosURL: imageUrl != null ? [imageUrl] : [],
-    );
-
-    try {
-      await vehicleRef.set(vehicle.toMap());
-      if (!mounted) return;
-
+Future<void> _saveCar() async {
+  if (!_formKey.currentState!.validate()) {
+    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Car saved successfully!')),
-      );
-
-      Navigator.pop(context);
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error saving car: $e')),
+        const SnackBar(content: Text('Please fill in all fields')),
       );
     }
+    return;
   }
+
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You must be logged in to add a car')),
+      );
+    }
+    return;
+  }
+
+  final vehicleRef = FirebaseFirestore.instance
+      .collection('vehicles') // 🔁 Now saving in top-level
+      .doc();
+
+  final vehicleId = vehicleRef.id;
+
+  final assignedDriverId = _assignedDriverIdController.text.trim();
+  if (_selectedBrand == null || _selectedType == null || _selectedYear == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Please select brand, type, and year')),
+    );
+    return;
+  }
+
+
+
+  final vehicle = Vehicle(
+    vid: vehicleId,
+    companyId: companyId!, 
+    brand: _selectedBrand!,
+    model: _modelController.text.trim(),
+    type: _selectedType!,
+    year: _selectedYear!,
+    matricule: fullMatricule,
+    createdAt: DateTime.now(),
+    photosURL: uploadedPhotos,
+    assignedDriverId: assignedDriverId.isNotEmpty ? assignedDriverId : null,
+    location: {
+      'latitude': 0.0,
+      'longitude': 0.0,
+      'timestamp': DateTime.now().toIso8601String(),
+    },
+  );
+
+  try {
+    await vehicleRef.set(vehicle.toMap()); // Save to top-level
+    if (!mounted) return;
+
+   showCustomSnackBar(context, 'Car saved successfully!');
+    
+
+    Navigator.pop(context);
+  } catch (e) {
+    if (!mounted) return;
+    showCustomSnackBar(context, 'Error saving car: $e', isError: true);
+  }
+}
+void showCustomSnackBar(BuildContext context, String message, {bool isError = false}) {
+  final color = isError ? Colors.red[600] : Colors.green[600];
+  final icon = isError ? Icons.error_outline : Icons.check_circle_outline;
+
+  final snackBar = SnackBar(
+    behavior: SnackBarBehavior.floating,
+    backgroundColor: Colors.transparent,
+    elevation: 0,
+    content: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.white),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(color: Colors.white, fontSize: 16),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    ),
+    duration: const Duration(seconds: 3),
+  );
+
+  ScaffoldMessenger.of(context).showSnackBar(snackBar);
+}
 
   String get fullMatricule =>
       '${_numberController.text}-${_arabicLetterController.text}-${_provinceController.text}';
+  // Pick and upload photo to Firebase Storage (optional)
+Future<String?> pickAndUploadCarPhoto(String vehicleId) async {
+  try {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile == null) return null;
 
-  // Pick and upload photo to Supabase Storage
-  Future<String?> pickAndUploadCarPhoto(String vehicleId) async {
-    try {
-      final picker = ImagePicker();
-      final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-      if (pickedFile == null) return null;
+    final Uint8List fileBytes = await pickedFile.readAsBytes();
 
-      final Uint8List fileBytes = await pickedFile.readAsBytes();
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return null;
 
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return null;
+    final fileName = '${vehicleId}_${const Uuid().v4()}.jpg';
+    final filePath = 'vehicle-images/${user.uid}/$fileName';
 
-      final fileName = '${vehicleId}_${const Uuid().v4()}.jpg';
-      final filePath = 'vehicle-images/${user.uid}/$fileName';
+    final storageRef = FirebaseStorage.instance.ref().child(filePath);
 
-      final storageRef = FirebaseStorage.instance.ref().child(filePath);
+    await storageRef.putData(
+      fileBytes,
+      SettableMetadata(contentType: 'image/jpeg'),
+    );
 
-      // Just await the upload — no need to store the result if unused
-      await storageRef.putData(
-        fileBytes,
-        SettableMetadata(contentType: 'image/jpeg'),
-      );
-
-      final downloadUrl = await storageRef.getDownloadURL();
-      return downloadUrl;
-    } catch (e) {
-      return null;
-    }
+    return filePath; // ⬅️ Return the Storage path, not the URL
+  } catch (e) {
+    return null;
   }
+}
   // Fetch car brand suggestions from API
 
   Future<List<String>> fetchBrandSuggestions(String query) async {
@@ -160,7 +202,7 @@ class _AddCarPageState extends State<AddCarPage> {
         uri,
         headers: {
           'X-RapidAPI-Key':
-              '2cdc31e33fmsh484d3a30022930ap1bde81jsn9d05d1360cc1', 
+              '2cdc31e33fmsh484d3a30022930ap1bde81jsn9d05d1360cc1',
           'X-RapidAPI-Host': 'car-api2.p.rapidapi.com',
         },
       );
@@ -222,7 +264,61 @@ class _AddCarPageState extends State<AddCarPage> {
       return [];
     }
   }
+   
+   Future<void> loadCompanyId() async {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) {
+    // User is not logged in — show message and maybe redirect to login page
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You must be logged in to add a car.')),
+      );
+    }
+    return;
+  }
 
+  try {
+    final adminDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .get();
+
+    if (!adminDoc.exists) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Admin data not found.')),
+        );
+      }
+      return;
+    }
+
+    final data = adminDoc.data();
+    if (data == null || data['companyId'] == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Company ID not found.')),
+        );
+      }
+      return;
+    }
+
+    setState(() {
+      companyId = data['companyId'] as String;
+    });
+  } catch (e) {
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load company ID: $e')),
+      );
+    }
+  }
+}
+
+   @override
+  void initState() {
+    super.initState();
+    loadCompanyId();
+  }
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -278,6 +374,7 @@ class _AddCarPageState extends State<AddCarPage> {
                             style: TextStyle(
                                 fontSize: 18, fontWeight: FontWeight.bold),
                           ),
+                         
                           const SizedBox(height: 10),
 
                           // Brand with TypeAhead
@@ -308,8 +405,7 @@ class _AddCarPageState extends State<AddCarPage> {
                               setState(() {
                                 _selectedBrand = suggestion;
                                 // Clear the model field when a new brand is selected
-                                _modelController.clear();
-                                _selectedBrand = null;
+                                
                               });
                             },
                             validator: (value) =>
@@ -430,12 +526,12 @@ class _AddCarPageState extends State<AddCarPage> {
                             validator: (value) =>
                                 value == null ? 'Please select a year' : null,
                           ),
+                          const SizedBox(height: 8),
 
-                          const SizedBox(height: 10),
 
                           // Matricule TextField
                           Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 12.0),
+                            padding: const EdgeInsets.symmetric(vertical: 8.0),
                             child: Stack(
                               children: [
                                 // The box around inputs
@@ -532,6 +628,15 @@ class _AddCarPageState extends State<AddCarPage> {
                           ),
 
                           const SizedBox(height: 8),
+                           
+                          (companyId == null || companyId!.isEmpty)
+                              ? const Center(child: CircularProgressIndicator())
+                              : AssignDriverDropdown(
+                                  companyId: companyId!,
+                                  controller: _assignedDriverIdController,
+                                ),
+                                const SizedBox(height: 10),
+
 
                           // 🖼️ Car Photos Section
                           Container(
@@ -573,55 +678,41 @@ class _AddCarPageState extends State<AddCarPage> {
                                         const Text('Drag and drop photos here'),
                                         const SizedBox(height: 10),
                                         ElevatedButton(
-                                          onPressed: () async {
-                                            final user = FirebaseAuth
-                                                .instance.currentUser;
-                                            if (user == null) {
-                                              if (!context.mounted) return;
-                                              ScaffoldMessenger.of(context)
-                                                  .showSnackBar(
-                                                const SnackBar(
-                                                    content: Text(
-                                                        'You must be logged in')),
-                                              );
-                                              return;
-                                            }
+  onPressed: () async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('You must be logged in')),
+      );
+      return;
+    }
 
-                                            final vehicleId = const Uuid().v4();
-                                            final imageUrl =
-                                                await pickAndUploadCarPhoto(
-                                                    vehicleId);
+    // Generate a temporary vehicleId if not already assigned
+    final vehicleId = const Uuid().v4();
 
-                                            if (!context.mounted) return;
+    // Upload and get the image storage path (not URL)
+    final imageStoragePath = await pickAndUploadCarPhoto(vehicleId);
 
-                                            if (imageUrl != null) {
-                                              ScaffoldMessenger.of(context)
-                                                  .showSnackBar(
-                                                const SnackBar(
-                                                    content: Text(
-                                                        'Image uploaded successfully!')),
-                                              );
+    if (!context.mounted) return;
 
-                                              await FirebaseFirestore.instance
-                                                  .collection('users')
-                                                  .doc(user.uid)
-                                                  .collection('vehicles')
-                                                  .doc(vehicleId)
-                                                  .set({
-                                                'photos': [imageUrl],
-                                                'uploadedAt': DateTime.now(),
-                                              }, SetOptions(merge: true));
-                                            } else {
-                                              ScaffoldMessenger.of(context)
-                                                  .showSnackBar(
-                                                const SnackBar(
-                                                    content: Text(
-                                                        'Image upload failed')),
-                                              );
-                                            }
-                                          },
-                                          child: const Text('Upload Photo'),
-                                        ),
+    if (imageStoragePath != null) {
+      setState(() {
+        uploadedPhotos.add(imageStoragePath); // Store storage path (not URL)
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Image uploaded successfully!')),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Image upload failed')),
+      );
+    }
+  },
+  child: const Text('Upload Photo'),
+),
+
                                       ],
                                     ),
                                   ),
@@ -630,6 +721,7 @@ class _AddCarPageState extends State<AddCarPage> {
                             ),
                           ),
                           const SizedBox(height: 8),
+
 
                           // ✅ Action Buttons Section
                           Container(

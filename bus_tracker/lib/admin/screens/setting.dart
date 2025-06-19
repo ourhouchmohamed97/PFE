@@ -146,6 +146,7 @@ class _SettingsPageState extends State<SettingsPage> {
                 ElevatedButton.icon(
                   onPressed: () async {
                     try {
+                      await AdminHomePage.cancelNotificationListener(); 
                       await _auth.signOut();
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(

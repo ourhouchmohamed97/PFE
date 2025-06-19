@@ -24,7 +24,7 @@ class _ProfilePageState extends State<ProfilePage> {
   UserModel? currentUser;
   bool isLoading = true;
   String? companyName;
- String? companyCode;
+  String? companyCode;
 
   @override
   void initState() {
@@ -32,57 +32,61 @@ class _ProfilePageState extends State<ProfilePage> {
     fetchUserData();
   }
 
-Future<void> fetchUserData() async {
-  try {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
+  Future<void> fetchUserData() async {
+    try {
+      final uid = FirebaseAuth.instance.currentUser?.uid;
+      if (uid == null) return;
 
-    final userDoc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
-    if (!userDoc.exists) return;
+      final userDoc =
+          await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      if (!userDoc.exists) return;
 
-    final userData = userDoc.data()!;
-    final role = userData['role'];
+      final userData = userDoc.data()!;
+      final role = userData['role'];
 
-    UserModel? user;
+      UserModel? user;
 
-    String? fetchedCompanyName;
-    String? fetchedCompanyCode;
+      String? fetchedCompanyName;
+      String? fetchedCompanyCode;
 
-    if (role == 'admin') {
-      final companyId = userData['companyId'];
+      if (role == 'admin') {
+        final companyId = userData['companyId'];
 
-      if (companyId != null) {
-        final companyDoc = await FirebaseFirestore.instance.collection('companies').doc(companyId).get();
-        print('Company document exists: ${companyDoc.exists}');
-        print('Company data: ${companyDoc.data()}');
-        if (companyDoc.exists) {
-          final companyData = companyDoc.data();
-          fetchedCompanyName = companyData?['companyName'];
-          fetchedCompanyCode = companyData?['companyCode'];
+        if (companyId != null) {
+          final companyDoc = await FirebaseFirestore.instance
+              .collection('companies')
+              .doc(companyId)
+              .get();
+          print('Company document exists: ${companyDoc.exists}');
+          print('Company data: ${companyDoc.data()}');
+          if (companyDoc.exists) {
+            final companyData = companyDoc.data();
+            fetchedCompanyName = companyData?['companyName'];
+            fetchedCompanyCode = companyData?['companyCode'];
+          }
         }
+
+        user = AdminUser.fromMap({
+          ...userData,
+          'companyName': fetchedCompanyName,
+          'companyCode': fetchedCompanyCode,
+        }, uid);
+      } else if (role == 'driver') {
+        user = DriverUser.fromMap(userData, uid);
+      } else {
+        user = UserModel.fromMap(userData, uid);
       }
 
-      user = AdminUser.fromMap({
-        ...userData,
-        'companyName': fetchedCompanyName,
-        'companyCode': fetchedCompanyCode,
-      }, uid);
-    } else if (role == 'driver') {
-      user = DriverUser.fromMap(userData, uid);
-    } else {
-      user = UserModel.fromMap(userData, uid);
+      setState(() {
+        currentUser = user;
+        companyName = fetchedCompanyName;
+        companyCode = fetchedCompanyCode;
+        isLoading = false;
+      });
+    } catch (e) {
+      print('Error fetching user data: $e');
     }
-
-    setState(() {
-      currentUser = user;
-      companyName = fetchedCompanyName;
-      companyCode = fetchedCompanyCode;
-      isLoading = false;
-    });
-  } catch (e) {
-    print('Error fetching user data: $e');
   }
-}
 
   String _getRoleName(String? role) {
     switch (role) {
@@ -133,7 +137,7 @@ Future<void> fetchUserData() async {
               );
               break;
             case 1:
-             Navigator.pushReplacement(
+              Navigator.pushReplacement(
                 context,
                 MaterialPageRoute(builder: (_) => const VehicleTrackingPage()),
               );
@@ -292,21 +296,20 @@ Future<void> fetchUserData() async {
                         const SizedBox(height: 12),
                         const Divider(color: Colors.grey),
                         const SizedBox(height: 12),
-                      if (currentUser!.role == 'admin') ...[
-  const SizedBox(height: 12),
-  
-  _InfoRow(
-    icon: Icons.business,
-    title: 'Company Name',
-    value: companyName ?? 'Loading...',
-  ),
-  const SizedBox(height: 12),
-  _InfoRow(
-    icon: Icons.code,
-    title: 'Company Code',
-    value: companyCode ?? 'Loading...',
-  ),
-]
+                        if (currentUser!.role == 'admin') ...[
+                          const SizedBox(height: 12),
+                          _InfoRow(
+                            icon: Icons.business,
+                            title: 'Company Name',
+                            value: companyName ?? 'Loading...',
+                          ),
+                          const SizedBox(height: 12),
+                          _InfoRow(
+                            icon: Icons.code,
+                            title: 'Company Code',
+                            value: companyCode ?? 'Loading...',
+                          ),
+                        ]
                       ]
                     ]),
               ),
@@ -320,13 +323,21 @@ Future<void> fetchUserData() async {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () async {
+                      await AdminHomePage
+                          .cancelNotificationListener(); // Cancel the Firestore stream
                       await FirebaseAuth.instance.signOut();
-                      if (!mounted) return;
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => const LoginPage()),
-                      );
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                              content: Text(
+                                  'You have been signed out successfully!')),
+                        );
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) => const LoginPage()),
+                        );
+                      }
                     },
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 18),

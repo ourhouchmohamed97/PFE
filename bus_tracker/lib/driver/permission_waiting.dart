@@ -1,3 +1,6 @@
+// import 'package:bus_tracker/admin/screens/notification.dart';
+import 'package:bus_tracker/driver/driver_home.dart';
+import 'package:bus_tracker/shared/pages/d_login_Page.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -17,52 +20,83 @@ class _DriverWaitingForPermissionPageState extends State<DriverWaitingForPermiss
     super.initState();
     _checkApprovalStatus();
   }
-
-  Future<void> _checkApprovalStatus() async {
+  Future<void> _logout() async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) {
-        setState(() {
-          error = 'No user logged in.';
-          isLoading = false;
-        });
-        return;
-      }
+      await FirebaseAuth.instance.signOut();
 
-      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      if (!mounted) return;
 
-      if (!doc.exists) {
-        setState(() {
-          error = 'User data not found.';
-          isLoading = false;
-        });
-        return;
-      }
-
-      final data = doc.data()!;
-      // Assume you have an 'isApproved' boolean field in the user document
-      setState(() {
-        isApproved = data['isApproved'] ?? false;
-        isLoading = false;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginPage()),
+        );
       });
-
-      if (isApproved == true) {
-        // Navigate to main driver screen, for example:
-        Navigator.pushReplacementNamed(context, '/driverMainPage');
-      }
     } catch (e) {
-      setState(() {
-        error = 'Error checking approval: $e';
-        isLoading = false;
-      });
+      debugPrint('Logout error: $e');
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Échec de la déconnexion. Veuillez réessayer.')),
+      );
     }
   }
+
+
+  Future<void> _checkApprovalStatus() async {
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      setState(() {
+        error = 'No user logged in.';
+        isLoading = false;
+      });
+      return;
+    }
+
+    final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+
+    if (!doc.exists) {
+      setState(() {
+        error = 'User data not found.';
+        isLoading = false;
+      });
+      return;
+    }
+
+    final data = doc.data()!;
+    
+    // FIXED: Check status string instead of a boolean
+    setState(() {
+      isApproved = data['status'] == 'approved';
+      isLoading = false;
+    });
+
+    if (isApproved == true) {
+      Navigator.pushReplacement(
+    context,
+    MaterialPageRoute(builder: (context) => const DriverHomePage()),
+  );
+    }
+
+  } catch (e) {
+    setState(() {
+      error = 'Error checking approval: $e';
+      isLoading = false;
+    });
+  }
+}
+
 
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Waiting for Permission')),
+        appBar: AppBar(
+        title: const Text('Waiting for Permission'),
+        
+      ),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
@@ -76,7 +110,17 @@ class _DriverWaitingForPermissionPageState extends State<DriverWaitingForPermiss
 
     if (isApproved == false) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Waiting for Permission')),
+        appBar: AppBar(
+        title: const Text('Waiting for Permission'),
+        actions: [
+            
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: 'Logout',
+            onPressed: _logout,
+          ),
+        ],
+      ),
         body: const Center(
           child: Padding(
             padding: EdgeInsets.all(16.0),

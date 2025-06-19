@@ -95,6 +95,7 @@ class AuthService {
           'companyId': companyId,
           'targetAdminUid': adminUid,
           'driverEmail': email.toLowerCase(),
+          'driverUid': FirebaseAuth.instance.currentUser!.uid,
           'iconCodePoint': Icons.person_add.codePoint,
           'iconColor': 0xFFFF9800,
         });

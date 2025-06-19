@@ -1,4 +1,3 @@
-
 import 'dart:async';
 import 'package:bus_tracker/core/models/vehicule_model.dart';
 import 'package:bus_tracker/admin/screens/admin_home.dart';
@@ -11,7 +10,6 @@ import 'package:bus_tracker/shared/pages/call.dart';
 import 'package:bus_tracker/shared/pages/chat.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -31,6 +29,91 @@ class VehicleTrackingPageState extends State<VehicleTrackingPage> {
   GoogleMapController? _mapController;
   Vehicle? _selectedVehicle;
   StreamSubscription? _vehicleSubscription;
+  String? driverName;
+  String? driverEmail;
+  String? driverPhone;
+  String? assignedDriverId;
+  String? currentCompanyId;
+
+  String? currentVehicleId;
+
+  bool isLoadingDriver = false;
+
+Future<void> _assignDriver(String driverId) async {
+  final vehicleId = currentVehicleId;
+
+  try {
+    final vehicleRef = FirebaseFirestore.instance.collection('vehicles').doc(vehicleId);
+    final driverRef = FirebaseFirestore.instance.collection('users').doc(driverId);
+
+    // Reset previous driver if needed
+    if (assignedDriverId != null && assignedDriverId != driverId) {
+      await FirebaseFirestore.instance.collection('users').doc(assignedDriverId).update({
+        'vehicleId': null,
+      });
+    }
+
+    // Update vehicle with driverId
+    await vehicleRef.update({
+      'assignedDriverId': driverId,
+    });
+
+    // Update driver with vehicleId
+    await driverRef.update({
+      'vehicleId': vehicleId,
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Conducteur affecté avec succès.')),
+    );
+
+    setState(() {
+      assignedDriverId = driverId;
+    });
+  } catch (e) {
+    debugPrint('Erreur d\'affectation: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Erreur lors de l\'affectation du conducteur.')),
+    );
+  }
+}
+  Future<void> fetchDriverInfo(String driverId) async {
+    setState(() {
+      isLoadingDriver = true;
+    });
+
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(driverId)
+          .get();
+
+      if (doc.exists) {
+        final data = doc.data()!;
+        setState(() {
+          driverName = data['name'] ?? 'No name';
+          driverEmail = data['email'] ?? 'No email';
+          driverPhone = data['phone'] ?? 'No phone';
+        });
+      } else {
+        setState(() {
+          driverName = 'Driver not found';
+          driverEmail = '';
+          driverPhone = '';
+        });
+      }
+    } catch (e) {
+      setState(() {
+        driverName = 'Error loading driver';
+        driverEmail = '';
+        driverPhone = '';
+      });
+    } finally {
+      setState(() {
+        isLoadingDriver = false;
+      });
+    }
+  }
 
   Future<void> _getCurrentLocation() async {
     try {
@@ -102,56 +185,134 @@ class VehicleTrackingPageState extends State<VehicleTrackingPage> {
   bool _isLoading = true;
   List<Vehicle> _vehicles = [];
 
- void _listenToUserVehicles() async {
-  final user = FirebaseAuth.instance.currentUser;
-  if (user == null) return;
+  void _listenToUserVehicles() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
 
-  final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-  final userData = userDoc.data();
-  if (userData == null) return;
+    final userDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .get();
+    final userData = userDoc.data();
+    if (userData == null) return;
 
-  final role = userData['role'];
-  final companyId = userData['companyId'];
+    final role = userData['role'];
+    final companyId = userData['companyId'];
 
-  Query vehiclesQuery;
+    Query vehiclesQuery;
 
-  if (role == 'admin') {
-    vehiclesQuery = FirebaseFirestore.instance
-        .collection('vehicles')
-        .where('companyId', isEqualTo: companyId)
-        .orderBy('createdAt', descending: true);
-  } else if (role == 'driver') {
-    vehiclesQuery = FirebaseFirestore.instance
-        .collection('vehicles')
-        .where('driverId', isEqualTo: user.uid)
-        .orderBy('createdAt', descending: true);
-  } else {
-    return;
+    if (role == 'admin') {
+      vehiclesQuery = FirebaseFirestore.instance
+          .collection('vehicles')
+          .where('companyId', isEqualTo: companyId)
+          .orderBy('createdAt', descending: true);
+    } else if (role == 'driver') {
+      vehiclesQuery = FirebaseFirestore.instance
+          .collection('vehicles')
+          .where('driverId', isEqualTo: user.uid)
+          .orderBy('createdAt', descending: true);
+    } else {
+      return;
+    }
+
+    _vehicleSubscription = vehiclesQuery.snapshots().listen((snapshot) {
+      final vehicles = snapshot.docs.map((doc) {
+        final data = doc.data() as Map<String, dynamic>;
+        data['id'] = doc.id;
+        return Vehicle.fromMap(data);
+      }).toList();
+
+      if (mounted) {
+        setState(() {
+          _vehicles = vehicles;
+          _isLoading = false;
+        });
+      }
+    });
   }
 
-  _vehicleSubscription = vehiclesQuery.snapshots().listen((snapshot) {
-    final vehicles = snapshot.docs
-        .map((doc) => Vehicle.fromMap(doc.id, doc.data() as Map<String, dynamic>))
-        .toList();
+  void _selectVehicle(Vehicle vehicle) {
+    setState(() {
+      _selectedVehicle = vehicle;
+    });
 
-    if (mounted) {
+    if (vehicle.assignedDriverId != null &&
+        vehicle.assignedDriverId!.isNotEmpty) {
+      fetchDriverInfo(vehicle.assignedDriverId!);
+    } else {
+      // Reset driver info if no driver assigned
       setState(() {
-        _vehicles = vehicles;
-        _isLoading = false;
+        driverName = 'No driver assigned';
+        driverEmail = '';
+        driverPhone = '';
       });
     }
-  });
+  }
+
+Future<void> _showDriverSelectionDialog() async {
+  final admin = FirebaseAuth.instance.currentUser;
+  if (admin == null) return;
+
+  // Get admin's companyId
+  final adminDoc = await FirebaseFirestore.instance.collection('users').doc(admin.uid).get();
+  final companyId = adminDoc.data()?['companyId'];
+  if (companyId == null) return;
+
+  try {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .where('role', isEqualTo: 'driver')
+        .where('status', isEqualTo: 'approved')
+        .where('companyId', isEqualTo: companyId)
+        .get();
+
+    final drivers = snapshot.docs;
+
+    // Now show dialog with list of drivers
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Select a Driver'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: ListView.builder(
+            shrinkWrap: true,
+            itemCount: drivers.length,
+            itemBuilder: (context, index) {
+              final driver = drivers[index];
+              return ListTile(
+                leading: const Icon(Icons.person),
+                title: Text(driver['name'] ?? 'No name'),
+                subtitle: Text(driver['email'] ?? ''),
+                onTap: () {
+                  Navigator.pop(context);
+                  _assignDriver(driver.id);
+                },
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  } catch (e) {
+    debugPrint('Error fetching drivers: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Failed to load drivers.')),
+    );
+  }
 }
 
   @override
   void initState() {
     super.initState();
+    
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       checkLocationServices(context);
       _getCurrentLocation();
       _listenToUserVehicles(); // start real-time updates
       _onItemTapped(_selectedIndex);
+      
     });
   }
 
@@ -180,7 +341,7 @@ class VehicleTrackingPageState extends State<VehicleTrackingPage> {
         actions: [
           IconButton(
             onPressed: () {
-              Navigator.pushReplacement(
+              Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const NotificationsPage()),
               );
@@ -195,7 +356,7 @@ class VehicleTrackingPageState extends State<VehicleTrackingPage> {
               );
             },
             child: const CircleAvatar(
-              backgroundImage: AssetImage('assets/images/zaz.png'),
+              backgroundImage: AssetImage('assets/images/profile.png'),
             ),
           ),
           const SizedBox(width: 18),
@@ -263,11 +424,7 @@ class VehicleTrackingPageState extends State<VehicleTrackingPage> {
                                   padding: EdgeInsets.only(
                                       top: index == 0 ? 16.0 : 0),
                                   child: GestureDetector(
-                                    onTap: () {
-                                      setState(() {
-                                        _selectedVehicle = vehicle;
-                                      });
-                                    },
+                                    onTap: () => _selectVehicle(vehicle),
                                     child: Card(
                                       margin: const EdgeInsets.only(bottom: 16),
                                       shape: RoundedRectangleBorder(
@@ -304,20 +461,71 @@ class VehicleTrackingPageState extends State<VehicleTrackingPage> {
                                                 crossAxisAlignment:
                                                     CrossAxisAlignment.start,
                                                 children: [
-                                                  Text(
-                                                    vehicle.brand,
-                                                    style: const TextStyle(
-                                                      fontSize: 18,
-                                                      fontWeight:
-                                                          FontWeight.bold,
-                                                    ),
+                                                  // First line: Brand and Type side by side
+                                                  Row(
+                                                    children: [
+                                                      Text(
+                                                        vehicle.brand,
+                                                        style: const TextStyle(
+                                                          fontSize: 18,
+                                                          fontWeight:
+                                                              FontWeight.bold,
+                                                        ),
+                                                      ),
+                                                      const SizedBox(width: 8),
+                                                      Container(
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .symmetric(
+                                                                horizontal: 8,
+                                                                vertical: 4),
+                                                        decoration:
+                                                            BoxDecoration(
+                                                          color: Colors
+                                                              .blue.shade100,
+                                                          borderRadius:
+                                                              BorderRadius
+                                                                  .circular(12),
+                                                        ),
+                                                        child: Text(
+                                                          vehicle.type,
+                                                          style: TextStyle(
+                                                            color: Colors
+                                                                .blue.shade700,
+                                                            fontWeight:
+                                                                FontWeight.w600,
+                                                            fontSize: 14,
+                                                          ),
+                                                        ),
+                                                      ),
+                                                    ],
                                                   ),
-                                                  const SizedBox(height: 4),
-                                                  Text(
-                                                    '${vehicle.type} • ${vehicle.year}',
-                                                    style: const TextStyle(
-                                                      color: Colors.grey,
-                                                      fontSize: 16,
+
+                                                  const SizedBox(height: 8),
+
+                                                  // Second line: Matricule
+                                                  Container(
+                                                    padding: const EdgeInsets
+                                                        .symmetric(
+                                                        horizontal: 12,
+                                                        vertical: 6),
+                                                    decoration: BoxDecoration(
+                                                      color:
+                                                          Colors.grey.shade200,
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              16),
+                                                    ),
+                                                    child: Text(
+                                                      'Matricule: ${vehicle.matricule}',
+                                                      style: TextStyle(
+                                                        color: Colors
+                                                            .grey.shade800,
+                                                        fontWeight:
+                                                            FontWeight.w600,
+                                                        fontSize: 14,
+                                                        letterSpacing: 1.1,
+                                                      ),
                                                     ),
                                                   ),
                                                 ],
@@ -351,8 +559,15 @@ class VehicleTrackingPageState extends State<VehicleTrackingPage> {
                       showModalBottomSheet(
                         context: context,
                         isScrollControlled: true,
-                        builder: (_) =>
-                            _buildConnectionSheet(_selectedVehicle!),
+                        builder: (_) => _buildConnectionSheet(
+                          _selectedVehicle!,
+                          driverName: driverName,
+                          driverEmail: driverEmail,
+                          driverPhone: driverPhone,
+                          onAssignDriver: () {
+                            _showDriverSelectionDialog();
+                          },
+                        ),
                       );
                     },
                     style: ElevatedButton.styleFrom(
@@ -374,7 +589,7 @@ class VehicleTrackingPageState extends State<VehicleTrackingPage> {
                         alignment: Alignment.center,
                         constraints: const BoxConstraints(minHeight: 56),
                         child: Text(
-                          'Connect with "${_selectedVehicle!.type}"',
+                          'Connect with "${_selectedVehicle!.brand}"',
                           style: const TextStyle(
                             fontSize: 14,
                             color: Colors.white,
@@ -450,7 +665,13 @@ class VehicleTrackingPageState extends State<VehicleTrackingPage> {
 
 // when you click on connect with a car this what you will see in the page!
 
-Widget _buildConnectionSheet(Vehicle vehicle) {
+Widget _buildConnectionSheet(
+  Vehicle vehicle, {
+  required String? driverName,
+  required String? driverEmail,
+  required String? driverPhone,
+  required VoidCallback onAssignDriver,
+}) {
   return DraggableScrollableSheet(
     expand: false,
     initialChildSize: 0.65,
@@ -485,8 +706,6 @@ Widget _buildConnectionSheet(Vehicle vehicle) {
                       ),
                     ),
                     const SizedBox(height: 20),
-
-                    // Show first photo if exists, else a placeholder
                     vehicle.photosURL.isNotEmpty
                         ? Image.network(
                             vehicle.photosURL.first,
@@ -503,10 +722,12 @@ Widget _buildConnectionSheet(Vehicle vehicle) {
                   ],
                 ),
               ),
+
               const SizedBox(height: 30),
               const Text('Car details',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
               const SizedBox(height: 16),
+
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -518,46 +739,110 @@ Widget _buildConnectionSheet(Vehicle vehicle) {
                       children: [
                         Text(
                           '${vehicle.brand} ${vehicle.model}',
-                          style: const TextStyle(fontSize: 14),
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
+                        const SizedBox(height: 6),
+                        _buildInfoRow(Icons.category, 'Type', vehicle.type),
+                        _buildInfoRow(Icons.calendar_today, 'Year',
+                            vehicle.year.toString()),
+                        _buildInfoRow(Icons.confirmation_number, 'Matricule',
+                            vehicle.matricule),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+
+              const Divider(height: 32),
+
+              const Text('Driver info',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 16),
+
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Icon(Icons.person, color: Colors.green),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                         Text(
-                          'Type: ${vehicle.type}, Year: ${vehicle.year}',
-                          style:
-                              TextStyle(color: Colors.grey[600], fontSize: 12),
+                          driverName ?? 'No driver assigned',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
-                        Text(
-                          'Matricule: ${vehicle.matricule}',
-                          style:
-                              TextStyle(color: Colors.grey[600], fontSize: 12),
+                        const SizedBox(height: 6),
+                        if ((driverEmail ?? '').isNotEmpty)
+                          _buildInfoRow(Icons.email, 'Email', driverEmail!),
+                        if ((driverPhone ?? '').isNotEmpty)
+                          _buildInfoRow(Icons.phone, 'Phone', driverPhone!),
+
+                        const SizedBox(height: 12),
+
+                        ElevatedButton.icon(
+                          onPressed: onAssignDriver,
+                          icon: const Icon(Icons.person_add),
+                          label: Text(
+                            vehicle.assignedDriverId == null
+                                ? 'Assign Driver'
+                                : 'Change Driver',
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                vehicle.assignedDriverId == null
+                                    ? Colors.green
+                                    : Colors.orange,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
                         ),
                       ],
                     ),
                   ),
                 ],
               ),
-              const Divider(height: 32),
-              const SizedBox(height: 16),
-              // Remove battery section (no battery info in your model)
-              // If you want, you can add placeholder or remove it entirely
-
-              // For demonstration, let's skip it
 
               const Divider(height: 32),
-              Row(
+
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Icon(Icons.access_time, color: Colors.blue),
-                  const SizedBox(width: 12),
-                  const Text('Want to connect with driver?'),
-                  const Spacer(),
-                  TextButton(
-                    onPressed: () {
-                      _showDriverConnectionSheet(context, vehicle);
-                    },
-                    child: const Text('Connect now'),
+                  const Row(
+                    children: [
+                      Icon(Icons.access_time, color: Colors.blue),
+                      SizedBox(width: 12),
+                      Text('Want to connect with driver?'),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Center(
+                    child: TextButton(
+                      onPressed: () {
+                        _showDriverConnectionSheet(
+                          context,
+                          vehicle,
+                          driverName ?? '',
+                        );
+                      },
+                      child: const Text('Connect now'),
+                    ),
                   ),
                 ],
               ),
+
               const SizedBox(height: 30),
+
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
@@ -581,7 +866,38 @@ Widget _buildConnectionSheet(Vehicle vehicle) {
   );
 }
 
-void _showDriverConnectionSheet(BuildContext context, Vehicle vehicle) {
+Widget _buildInfoRow(IconData icon, String label, String value) {
+  return Padding(
+    padding: const EdgeInsets.only(bottom: 6),
+    child: Row(
+      children: [
+        Icon(icon, size: 16, color: Colors.grey[600]),
+        const SizedBox(width: 6),
+        Text(
+          '$label: ',
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            color: Colors.black87,
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: TextStyle(
+              fontSize: 13,
+              color: Colors.grey[700],
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    ),
+  );
+}
+
+void _showDriverConnectionSheet(
+    BuildContext context, Vehicle vehicle, String driverName) {
   showModalBottomSheet(
     context: context,
     isScrollControlled: true,
@@ -621,40 +937,14 @@ void _showDriverConnectionSheet(BuildContext context, Vehicle vehicle) {
             ],
           ),
           const Divider(height: 32),
-          const SizedBox(height: 20),
           Row(
             children: [
-              CircleAvatar(
-                radius: 30,
-                backgroundImage: vehicle.photosURL.isNotEmpty
-                    ? NetworkImage(vehicle.photosURL.first)
-                    : const AssetImage('assets/images/default_car.png')
-                        as ImageProvider,
-              ),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(vehicle.matricule,
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
-                  Text(vehicle.type, style: TextStyle(color: Colors.grey[600])),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // You don't have driverName or rating, so remove this row or add placeholders
-          // Example placeholders:
-          const Row(
-            children: [
-
-              Text("Driver: John Doe",
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-              SizedBox(width: 8),
-              Icon(Icons.star, color: Colors.amber, size: 18),
-              Text("4.8"),
-
-              
+              Text("Driver: $driverName",
+                  style: const TextStyle(
+                      fontSize: 16, fontWeight: FontWeight.w600)),
+              const SizedBox(width: 8),
+              const Icon(Icons.star, color: Colors.amber, size: 18),
+              const Text("4.8"),
             ],
           ),
           const SizedBox(height: 20),

@@ -1,5 +1,6 @@
 import 'package:bus_tracker/admin/screens/admin_home.dart';
-import 'package:bus_tracker/driver/driver_home.dart';
+import 'package:bus_tracker/driver/permission_waiting.dart';
+import 'package:bus_tracker/shared/pages/redirect_by_role.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -29,7 +30,7 @@ class HomepageState extends State<Homepage> {
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const Welcome()),
+        MaterialPageRoute(builder: (context) => const  RedirectByRolePage()),
       );
     } else {
       // User is signed in, fetch user role from Firestore
@@ -51,7 +52,7 @@ class HomepageState extends State<Homepage> {
       if (role == 'admin') {
         nextPage = const AdminHomePage();
       } else if (role == 'driver') {
-        nextPage = const DriverHomePage();
+        nextPage =  DriverWaitingForPermissionPage();
       } else {
         nextPage = const Welcome(); // fallback
       }

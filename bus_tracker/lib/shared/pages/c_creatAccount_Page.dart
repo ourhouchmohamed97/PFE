@@ -3,7 +3,6 @@ import 'package:bus_tracker/shared/pages/f_verifyEmail.dart';
 import 'package:bus_tracker/core/services/auth_service.dart';
 import 'package:bus_tracker/core/utils/validators/input_validator.dart';
 import 'package:bus_tracker/core/widgets/constants.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 
@@ -81,17 +80,6 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
       );
 
       if (error == null) {
-        if (_role == UserRole.driver) {
-        try {
-          await sendDriverApprovalRequest(
-            companyId: _companyCodeController.text.trim(),
-            driverEmail: _emailController.text.trim(),
-          );
-        } catch (e) {
-          // Handle error sending notification, but don't block navigation
-          print('Failed to send approval request notification: $e');
-        }
-      }
         _showToast("Verification email sent. Please check your email.");
         Navigator.pushReplacement(
           context,
@@ -106,22 +94,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   }
   
 
-  Future<void> sendDriverApprovalRequest({
-  required String companyId,
-  required String driverEmail,
-}) async {
-  final notificationsRef = FirebaseFirestore.instance.collection('notifications');
 
-  await notificationsRef.add({
-    'companyId': companyId,
-    'driverEmail': driverEmail,
-    'title': 'Driver Approval Request',
-    'description': '$driverEmail has requested driver access approval.',
-    'timestamp': FieldValue.serverTimestamp(),
-    'isRead': false,
-    'type': 'driverApprovalRequest',
-  });
-}
 
 
   void _showToast(String message) {

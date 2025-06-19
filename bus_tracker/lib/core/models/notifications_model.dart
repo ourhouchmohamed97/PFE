@@ -7,11 +7,11 @@ class NotificationItem {
   final String description;
   final DateTime timestamp;
   bool isRead;
-  final IconData iconData;      // <-- Ici IconData au lieu de int
+  final IconData iconData;
   final Color iconColor;
   final String? iconFontFamily;
   final String? iconFontPackage;
-  final String? driverEmail;
+  final String? driverUid;  // Changed from driverEmail
 
   NotificationItem({
     required this.docId,
@@ -19,22 +19,19 @@ class NotificationItem {
     required this.description,
     required this.timestamp,
     required this.isRead,
-    required this.iconData,      
+    required this.iconData,
     required this.iconColor,
     this.iconFontFamily,
     this.iconFontPackage,
-    this.driverEmail,
+    this.driverUid,
   });
 
   factory NotificationItem.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
 
-    // Construire l'IconData à partir des données Firestore
-    IconData icon = IconData(
-      data['iconData'] ?? Icons.notifications.codePoint,
-      fontFamily: data['iconFontFamily'] ?? Icons.notifications.fontFamily,
-      fontPackage: data['iconFontPackage'],
-    );
+    final int codePoint = data['iconCodePoint'] ?? Icons.notifications.codePoint;
+    final String? fontFamily = data['iconFontFamily'] ?? Icons.notifications.fontFamily;
+    final String? fontPackage = data['iconFontPackage'];
 
     return NotificationItem(
       docId: doc.id,
@@ -42,11 +39,26 @@ class NotificationItem {
       description: data['description'] ?? '',
       timestamp: (data['timestamp'] as Timestamp).toDate(),
       isRead: data['isRead'] ?? false,
-      iconData: icon,
+      iconData: IconData(codePoint, fontFamily: fontFamily, fontPackage: fontPackage),
       iconColor: Color(data['iconColor'] ?? 0xFF000000),
-      iconFontFamily: data['iconFontFamily'],
-      iconFontPackage: data['iconFontPackage'],
-      driverEmail: data['driverEmail'],
+      iconFontFamily: fontFamily,
+      iconFontPackage: fontPackage,
+      driverUid: data['driverUid'],  // Updated here
     );
   }
+
+  Map<String, dynamic> toFirestore() {
+    return {
+      'title': title,
+      'description': description,
+      'timestamp': Timestamp.fromDate(timestamp),
+      'isRead': isRead,
+      'iconCodePoint': iconData.codePoint,
+      'iconFontFamily': iconFontFamily,
+      'iconFontPackage': iconFontPackage,
+      'iconColor': iconColor.toARGB32(),  
+      'driverUid': driverUid,        
+    };
+  }
 }
+

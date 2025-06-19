@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:bus_tracker/admin/screens/driver_info.dart';
 import 'package:bus_tracker/core/models/notifications_model.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -5,6 +8,12 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 class NotificationsPage extends StatefulWidget {
   const NotificationsPage({Key? key}) : super(key: key);
+  static StreamSubscription? _notificationSubscription;
+
+  static Future<void> cancelNotificationListener() async {
+    await _notificationSubscription?.cancel();
+    _notificationSubscription = null;
+  }
 
   @override
   NotificationsPageState createState() => NotificationsPageState();
@@ -13,8 +22,10 @@ class NotificationsPage extends StatefulWidget {
 class NotificationsPageState extends State<NotificationsPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  StreamSubscription<QuerySnapshot>? _notificationsSubscription;
 
   String? companyId;
+  String? userRole;
   List<NotificationItem> _notifications = [];
   String _filter = 'All';
   bool _isLoading = true;
@@ -22,69 +33,72 @@ class NotificationsPageState extends State<NotificationsPage> {
   @override
   void initState() {
     super.initState();
-    _loadCompanyIdAndNotifications();
+    _loadUserDataAndListen();
   }
 
-  Future<void> _loadCompanyIdAndNotifications() async {
+  Future<void> _loadUserDataAndListen() async {
     final user = _auth.currentUser;
     if (user == null) {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
       return;
     }
 
     try {
       final userDoc = await _firestore.collection('users').doc(user.uid).get();
-
       if (!userDoc.exists) {
-        setState(() {
-          _isLoading = false;
-        });
+        setState(() => _isLoading = false);
         return;
       }
 
       final data = userDoc.data()!;
-      final fetchedCompanyId = data['companyId'] as String?;
+      companyId = data['companyId'] as String?;
+      userRole = data['role'] as String?;
 
-      if (fetchedCompanyId == null) {
-        setState(() {
-          _isLoading = false;
-        });
-        return;
-      }
-
-      setState(() {
-        companyId = fetchedCompanyId;
-      });
-
-      _listenNotifications(); // now filters by user email
+      _listenNotifications();
     } catch (e) {
-      print('Error loading companyId or notifications: $e');
-      setState(() {
-        _isLoading = false;
-      });
+      print('Error loading user data: $e');
+      setState(() => _isLoading = false);
     }
   }
 
   void _listenNotifications() {
     final user = _auth.currentUser;
-    if (companyId == null || user == null) return;
+    if (user == null) return;
 
-    _firestore
-        .collection('notifications')
-        .where('targetUserEmail', isEqualTo: user.email) // <-- filter by current admin
+    Query query = _firestore.collection('notifications');
+
+    if (userRole == 'admin') {
+      query = query
+          .where('targetAdminUid', isEqualTo: user.uid)
+          .where('companyId', isEqualTo: companyId);
+    } else {
+      query = query.where('targetAdminUid', isEqualTo: user.uid);
+    }
+
+    _notificationsSubscription = query
         .orderBy('timestamp', descending: true)
         .snapshots()
-        .listen((snapshot) {
-      final notifications = snapshot.docs
-          .map((doc) => NotificationItem.fromFirestore(doc))
-          .toList();
-      setState(() {
-        _notifications = notifications;
-        _isLoading = false;
-      });
-    });
+        .listen(
+      (snapshot) {
+        final notifications = snapshot.docs
+            .map((doc) => NotificationItem.fromFirestore(doc))
+            .toList();
+        setState(() {
+          _notifications = notifications;
+          _isLoading = false;
+        });
+      },
+      onError: (error) {
+        print('Notification listener error: $error');
+        setState(() => _isLoading = false);
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _notificationsSubscription?.cancel();
+    super.dispose();
   }
 
   List<NotificationItem> get filteredNotifications {
@@ -117,51 +131,8 @@ class NotificationsPageState extends State<NotificationsPage> {
           .collection('notifications')
           .doc(notification.docId)
           .update({'isRead': true});
-      setState(() {
-        notification.isRead = true;
-      });
+      setState(() => notification.isRead = true);
     }
-  }
-
-  Future<void> _approveDriver(NotificationItem notification) async {
-    try {
-      final driverEmail = notification.driverEmail;
-
-      if (driverEmail == null) {
-        print('Driver email missing in notification');
-        return;
-      }
-
-      final adminsQuery = await _firestore
-          .collection('users')
-          .where('companyId', isEqualTo: companyId)
-          .where('role', isEqualTo: 'admin')
-          .get();
-
-      for (var adminDoc in adminsQuery.docs) {
-        final adminEmail = adminDoc.data()['email'];
-
-        await _firestore.collection('notifications').add({
-          'title': 'Driver Account Approved',
-          'description': 'Driver account ($driverEmail) has been approved.',
-          'timestamp': FieldValue.serverTimestamp(),
-          'isRead': false,
-          'targetUserEmail': adminEmail,
-          'iconData': Icons.thumb_up.codePoint,
-          'iconColor': 0xFF4CAF50,
-          'iconFontFamily': Icons.thumb_up.fontFamily,
-          'iconFontPackage': Icons.thumb_up.fontPackage,
-          'driverEmail': driverEmail,
-          'companyId': companyId,
-        });
-      }
-    } catch (e) {
-      print('Error approving driver: $e');
-    }
-  }
-
-  Future<void> _rejectDriver(NotificationItem notification) async {
-    // Add rejection logic here
   }
 
   @override
@@ -175,6 +146,7 @@ class NotificationsPageState extends State<NotificationsPage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Notifications'),
+        backgroundColor: Colors.blue,
         actions: [
           IconButton(
             icon: const Icon(Icons.done_all),
@@ -189,11 +161,7 @@ class NotificationsPageState extends State<NotificationsPage> {
             padding: const EdgeInsets.all(8.0),
             child: DropdownButton<String>(
               value: _filter,
-              onChanged: (value) {
-                setState(() {
-                  _filter = value!;
-                });
-              },
+              onChanged: (value) => setState(() => _filter = value!),
               items: const [
                 DropdownMenuItem(value: 'All', child: Text('All')),
                 DropdownMenuItem(value: 'Unread', child: Text('Unread')),
@@ -208,51 +176,50 @@ class NotificationsPageState extends State<NotificationsPage> {
                     itemCount: filteredNotifications.length,
                     itemBuilder: (context, index) {
                       final notification = filteredNotifications[index];
+
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (!notification.isRead) _markAsRead(notification);
+                      });
+
                       return ListTile(
                         leading: Icon(
-                          IconData(
-                            notification.iconData as int,
-                            fontFamily: notification.iconFontFamily,
-                            fontPackage: notification.iconFontPackage,
-                          ),
+                          notification.iconData,
                           color: notification.iconColor,
                         ),
                         title: Text(notification.title),
                         subtitle: Text(
                           '${notification.description}\n${_formatTimestamp(notification.timestamp)}',
                         ),
-                        trailing: notification.title ==
-                                'New Driver Registration Request'
-                            ? Row(
+                        trailing: notification.isRead
+                            ? const Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.check,
-                                        color: Colors.green),
-                                    tooltip: 'Approve',
-                                    onPressed: () async {
-                                      await _approveDriver(notification);
-                                    },
-                                  ),
-                                  IconButton(
-                                    icon: const Icon(Icons.close,
-                                        color: Colors.red),
-                                    tooltip: 'Reject',
-                                    onPressed: () async {
-                                      await _rejectDriver(notification);
-                                    },
-                                  ),
+                                  Icon(Icons.done, color: Colors.blue, size: 18),
+                                  SizedBox(width: 2),
+                                  Icon(Icons.done_all, color: Colors.blue, size: 18),
                                 ],
                               )
-                            : Icon(
-                                notification.isRead
-                                    ? Icons.check
-                                    : Icons.mark_email_unread,
-                                color: notification.isRead
-                                    ? Colors.green
-                                    : Colors.red,
+                            : const Icon(Icons.done, color: Colors.grey, size: 18),
+                        onTap: () async {
+                          if (userRole == 'admin' &&
+                              notification.title ==
+                                  'New Driver Registration Request') {
+                            final result = await Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => DriverDetailPage(
+                                  driverUid: notification.driverUid!,
+                                  notificationDocId: notification.docId,
+                                ),
                               ),
-                        onTap: () => _markAsRead(notification),
+                            );
+                            if (result != null && mounted) {
+                              setState(() => notification.isRead = true);
+                            }
+                          } else {
+                            await _markAsRead(notification);
+                          }
+                        },
                       );
                     },
                   ),

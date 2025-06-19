@@ -1,94 +1,209 @@
-import 'package:bus_tracker/admin/screens/add_vehicle.dart';
+import 'dart:async';
+import 'dart:ui' as ui;
 import 'package:bus_tracker/admin/screens/notification.dart';
 import 'package:bus_tracker/admin/screens/profile.dart';
-import 'package:bus_tracker/admin/screens/setting.dart';
-import 'package:bus_tracker/admin/screens/view_vehicle.dart';
-import 'package:bus_tracker/core/widgets/constants.dart';
+import 'package:bus_tracker/shared/pages/d_login_Page.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class DriverHomePage extends StatefulWidget {
   const DriverHomePage({super.key});
+  static StreamSubscription? _notificationSubscription;
+
+  static Future<void> cancelNotificationListener() async {
+    await _notificationSubscription?.cancel();
+    _notificationSubscription = null;
+  }
 
   @override
-  _ActiveVehiclesPageState createState() => _ActiveVehiclesPageState();
+  State<DriverHomePage> createState() => _DriverHomePageState();
 }
 
-class _ActiveVehiclesPageState extends State<DriverHomePage> {
-  int _selectedIndex = 0;
-  LatLng? _userLocation;
+class _DriverHomePageState extends State<DriverHomePage> {
   GoogleMapController? _mapController;
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-
-    if (index == 1) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const VehicleTrackingPage()),
-      );
-    }
-    if (index == 3) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const SettingsPage()),
-      );
-    }
-  }
-
-  Future<void> _getCurrentLocation() async {
-    try {
-      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        await Geolocator.openLocationSettings();
-        return;
-      }
-      LocationPermission permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) return;
-      }
-      if (permission == LocationPermission.deniedForever) return;
-
-      Position position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high);
-
-      setState(() {
-        _userLocation = LatLng(position.latitude, position.longitude);
-      });
-
-      _mapController?.animateCamera(
-        CameraUpdate.newLatLng(_userLocation!),
-      );
-    } catch (e) {
-      print("Error getting location: $e");
-    }
-  }
-
-
-  
+  LatLng? _userLocation;
+  StreamSubscription<Position>? _locationSubscription;
+  BitmapDescriptor? _carIcon;
+  String? _companyId;
+  final String _vehicleId = "2ri5MdmmCgUrlFDNLUr8";
+  late DatabaseReference _vehicleRef;
+  int _unreadCount = 0;
 
   @override
   void initState() {
     super.initState();
-    _getCurrentLocation(); // Automatically get location on load
+    _vehicleRef = FirebaseDatabase.instanceFor(
+      app: Firebase.app(),
+      databaseURL:
+          'https://bustracker-eabea-default-rtdb.europe-west1.firebasedatabase.app',
+    ).ref("vehicles/$_vehicleId");
+
+    _loadCarIcon();
+    _checkPermissionsAndStartTracking();
+    _fetchCompanyIdAndInit();
+    _listenNotifications();
   }
+
+  Future<void> _fetchCompanyIdAndInit() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      if (!userDoc.exists) return;
+
+      final data = userDoc.data();
+      if (data == null || data['companyId'] == null) return;
+
+      _companyId = data['companyId'] as String;
+
+      _vehicleRef = FirebaseDatabase.instanceFor(
+        app: Firebase.app(),
+        databaseURL:
+            'https://bustracker-eabea-default-rtdb.europe-west1.firebasedatabase.app',
+      ).ref("vehicles/$_vehicleId");
+
+      await _loadCarIcon();
+      await _checkPermissionsAndStartTracking();
+    } catch (e) {
+      debugPrint('Erreur récupération companyId: $e');
+    }
+  }
+
+  Future<BitmapDescriptor> getResizedBitmapDescriptor(String path, int width, int height) async {
+    final byteData = await rootBundle.load(path);
+    final codec = await ui.instantiateImageCodec(
+      byteData.buffer.asUint8List(),
+      targetWidth: width,
+      targetHeight: height,
+    );
+    final frame = await codec.getNextFrame();
+    final data = await frame.image.toByteData(format: ui.ImageByteFormat.png);
+
+    return BitmapDescriptor.fromBytes(data!.buffer.asUint8List());
+  }
+
+  Future<void> _loadCarIcon() async {
+    _carIcon = await getResizedBitmapDescriptor('assets/images/carloc.png', 100, 100);
+  }
+
+  Future<void> _checkPermissionsAndStartTracking() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      await Geolocator.openLocationSettings();
+      return;
+    }
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        debugPrint("Location permission denied");
+        return;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      debugPrint("Location permission denied forever");
+      return;
+    }
+
+    _startListeningLocation();
+  }
+
+  void _startListeningLocation() {
+    _locationSubscription = Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        distanceFilter: 10,
+      ),
+    ).listen((Position position) {
+      final newLocation = LatLng(position.latitude, position.longitude);
+
+      final now = DateTime.now().toUtc();
+      final dayKey = "${now.year.toString().padLeft(4, '0')}-"
+          "${now.month.toString().padLeft(2, '0')}-"
+          "${now.day.toString().padLeft(2, '0')}";
+      final timestampKey = now.toIso8601String();
+
+      final tripPointRef = FirebaseDatabase.instanceFor(
+        app: Firebase.app(),
+        databaseURL:
+            'https://bustracker-eabea-default-rtdb.europe-west1.firebasedatabase.app',
+      ).ref("vehicles/$_vehicleId/trips/$dayKey/points/$timestampKey");
+
+      _vehicleRef.set({
+        "companyId": _companyId ?? "",
+        "location": {
+          "latitude": position.latitude,
+          "longitude": position.longitude,
+          "timestamp": timestampKey,
+        }
+      });
+
+      tripPointRef.set({
+        "latitude": position.latitude,
+        "longitude": position.longitude,
+        "timestamp": timestampKey,
+      }).then((_) {
+        debugPrint("Location and trip point updated: $newLocation");
+      }).catchError((e) {
+        debugPrint("Location update error: $e");
+      });
+
+      if (mounted) {
+        setState(() {
+          _userLocation = newLocation;
+        });
+
+        _mapController?.animateCamera(CameraUpdate.newLatLng(newLocation));
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _locationSubscription?.cancel();
+    _mapController?.dispose();
+    DriverHomePage.cancelNotificationListener();
+    super.dispose();
+  }
+
+ 
+void _listenNotifications() {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) return;
+
+  DriverHomePage._notificationSubscription = FirebaseFirestore.instance
+      .collection('notifications')
+      .where('targetUserUid', isEqualTo: user.uid)
+      .where('companyId', isEqualTo: _companyId)
+      .orderBy('timestamp', descending: true)
+      .snapshots()
+      .listen((snapshot) {
+    final unread = snapshot.docs
+        .where((doc) => !(doc.data()['isRead'] ?? true))
+        .length;
+
+    if (mounted) {
+      setState(() {
+        _unreadCount = unread;
+      });
+    }
+  });
+}
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios,
-              color: Color.fromARGB(255, 0, 0, 0)),
-          onPressed: () {
-            Navigator.pop(context);
-          },
-        ),
         title: Text(
           'CarTrack',
           style: GoogleFonts.lato(
@@ -98,14 +213,42 @@ class _ActiveVehiclesPageState extends State<DriverHomePage> {
           ),
         ),
         actions: [
-          IconButton(
-            onPressed: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => const NotificationsPage()),
-              );
-            },
-            icon: const Icon(Icons.notifications, color: Colors.grey),
+          Stack(
+            children: [
+              IconButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const NotificationsPage()),
+                  );
+                },
+                icon: const Icon(Icons.notifications, color: Colors.grey),
+              ),
+              if (_unreadCount > 0)
+                Positioned(
+                  right: 8,
+                  top: 8,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      color: Colors.red,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    constraints: const BoxConstraints(
+                      minWidth: 16,
+                      minHeight: 16,
+                    ),
+                    child: Text(
+                      '$_unreadCount',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+            ],
           ),
           GestureDetector(
             onTap: () {
@@ -117,143 +260,34 @@ class _ActiveVehiclesPageState extends State<DriverHomePage> {
               );
             },
             child: const CircleAvatar(
-              backgroundImage: AssetImage('assets/images/zaz.png'),
+              backgroundImage: AssetImage('assets/images/profile.png'),
             ),
           ),
-          const SizedBox(width: 16),
+          
+          const SizedBox(width: 8),
         ],
         backgroundColor: Colors.white,
         elevation: 0,
       ),
-      body: Stack(
-        children: [
-          // Google Map
-          GoogleMap(
-            initialCameraPosition: CameraPosition(
-              target: _userLocation ?? const LatLng(35.5713, -5.3724),
-              zoom: 14.0,
-            ),
-            onMapCreated: (controller) => _mapController = controller,
-            markers: {
-              if (_userLocation != null)
-                Marker(
-                  markerId: const MarkerId('userLocation'),
-                  position: _userLocation!,
-                  icon: BitmapDescriptor.defaultMarkerWithHue(
-                      BitmapDescriptor.hueBlue),
-                  infoWindow: const InfoWindow(title: "Your Location"),
-                ),
-            },
-            myLocationEnabled: true,
-            myLocationButtonEnabled: false,
-          ),
-
-          // Floating location button
-          Positioned(
-            bottom: 170,
-            left: 16,
-            child: FloatingActionButton(
-              onPressed: _getCurrentLocation,
-              backgroundColor: Colors.white,
-              child: const Icon(Icons.my_location, color: Colors.blue),
-            ),
-          ),
-          Positioned(
-            bottom: 0, // Just above BottomNavigationBar
-            left: 0,
-            right: 0,
-            child: Container(
-              color: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 36),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => const AddCarPage()),
-                          );
-                        },
-                        icon: const Icon(Icons.add, color: Colors.white),
-                        label: const Text('Add Vehicle'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                          minimumSize: const Size(160, 60),
-                          textStyle: const TextStyle(
-                              color: Colors.white, fontSize: 16),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          Navigator.pushReplacement(
-                            context,
-                            MaterialPageRoute(
-                                builder: (_) => const VehicleTrackingPage()),
-                          );
-                        },
-                        icon: const Icon(Icons.list, color: Colors.white),
-                        label: const Text('View Vehicle'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.black,
-                          minimumSize: const Size(160, 60),
-                          textStyle: const TextStyle(
-                              color: Colors.white, fontSize: 16),
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+      body: _userLocation == null
+          ? const Center(child: CircularProgressIndicator())
+          : GoogleMap(
+              initialCameraPosition: CameraPosition(
+                target: _userLocation!,
+                zoom: 15,
               ),
+              myLocationEnabled: true,
+              myLocationButtonEnabled: true,
+              onMapCreated: (controller) => _mapController = controller,
+              markers: {
+                Marker(
+                  markerId: const MarkerId("vehicle"),
+                  position: _userLocation!,
+                  icon: _carIcon ?? BitmapDescriptor.defaultMarker,
+                  infoWindow: const InfoWindow(title: "My Vehicle"),
+                )
+              },
             ),
-          ),
-        ],
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: Colors.white,
-        type: BottomNavigationBarType.fixed,
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.directions_car),
-            label: 'Vehicles',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.history),
-            label: 'History',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings),
-            label: 'Settings',
-          ),
-        ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: blueColor,
-        unselectedItemColor: Colors.grey,
-        showUnselectedLabels: true,
-        showSelectedLabels: true,
-        onTap: _onItemTapped,
-      ),
     );
   }
 }
