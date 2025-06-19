@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:bus_tracker/core/models/vehicule_model.dart';
 import 'package:bus_tracker/admin/screens/admin_home.dart';
-import 'package:bus_tracker/admin/screens/notification.dart';
+import 'package:bus_tracker/shared/pages/notification.dart';
 import 'package:bus_tracker/admin/screens/profile.dart';
 import 'package:bus_tracker/admin/screens/setting.dart';
 import 'package:bus_tracker/core/utils/checkLocation.dart';

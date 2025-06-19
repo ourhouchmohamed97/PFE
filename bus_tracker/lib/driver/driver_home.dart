@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:ui' as ui;
-import 'package:bus_tracker/admin/screens/notification.dart';
+import 'package:bus_tracker/shared/pages/notification.dart';
 import 'package:bus_tracker/admin/screens/profile.dart';
-import 'package:bus_tracker/shared/pages/d_login_Page.dart';
+// import 'package:bus_tracker/shared/pages/d_login_Page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';

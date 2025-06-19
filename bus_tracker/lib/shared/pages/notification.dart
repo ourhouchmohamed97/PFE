@@ -71,8 +71,12 @@ class NotificationsPageState extends State<NotificationsPage> {
       query = query
           .where('targetAdminUid', isEqualTo: user.uid)
           .where('companyId', isEqualTo: companyId);
+    } else if (userRole == 'driver') {
+      query = query
+          .where('targetUserUid', isEqualTo: user.uid)
+          .where('companyId', isEqualTo: companyId);
     } else {
-      query = query.where('targetAdminUid', isEqualTo: user.uid);
+      query = query.where('targetUserUid', isEqualTo: user.uid);
     }
 
     _notificationsSubscription = query
