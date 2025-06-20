@@ -56,4 +56,4 @@ dico_8digits.txt
 # Ignore all JAR files
 *.jar
 # Ignore BFG cleanup reports
-..bfg-report/*
+..bfg-report/
