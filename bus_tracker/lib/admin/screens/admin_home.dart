@@ -18,12 +18,13 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class AdminHomePage extends StatefulWidget {
   const AdminHomePage({super.key});
- static StreamSubscription? _notificationSubscription;
+  static StreamSubscription? _notificationSubscription;
 
- static Future<void> cancelNotificationListener() async {
-  await _notificationSubscription?.cancel();
-  _notificationSubscription = null;
-}
+  static Future<void> cancelNotificationListener() async {
+    await _notificationSubscription?.cancel();
+    _notificationSubscription = null;
+  }
+
   @override
   _ActiveVehiclesPageState createState() => _ActiveVehiclesPageState();
 }
@@ -43,7 +44,10 @@ class _ActiveVehiclesPageState extends State<AdminHomePage> {
     if (user == null) return;
 
     try {
-      final adminDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      final adminDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
       if (!adminDoc.exists) return;
 
       final data = adminDoc.data();
@@ -68,7 +72,8 @@ class _ActiveVehiclesPageState extends State<AdminHomePage> {
         .orderBy('timestamp', descending: true)
         .snapshots()
         .listen((snapshot) {
-      final unread = snapshot.docs.where((doc) => !(doc.data()['isRead'] ?? true)).length;
+      final unread =
+          snapshot.docs.where((doc) => !(doc.data()['isRead'] ?? true)).length;
 
       if (mounted) {
         setState(() {
@@ -78,59 +83,87 @@ class _ActiveVehiclesPageState extends State<AdminHomePage> {
     });
   }
 
- void _listenVehicleLocations() {
-  if (companyId == null) return;
+  void _listenVehicleLocations() {
+    if (companyId == null) return;
 
-  final vehiclesRef = FirebaseDatabase.instanceFor(
-    app: Firebase.app(),
-    databaseURL:
-        'https://bustracker-eabea-default-rtdb.europe-west1.firebasedatabase.app',
-  ).ref('vehicles');
+    final vehiclesRef = FirebaseDatabase.instanceFor(
+      app: Firebase.app(),
+      databaseURL:
+          'https://bustracker-eabea-default-rtdb.europe-west1.firebasedatabase.app',
+    ).ref('vehicles');
 
-  _vehiclesSubscription = vehiclesRef.onValue.listen((event) {
-    final vehiclesData = event.snapshot.value as Map<dynamic, dynamic>?;
+    _vehiclesSubscription = vehiclesRef.onValue.listen((event) async {
+      final vehiclesData = event.snapshot.value as Map<dynamic, dynamic>?;
 
-    if (vehiclesData == null) return;
+      if (vehiclesData == null) return;
 
-    final Map<String, Marker> newMarkers = {};
+      final Map<String, Marker> newMarkers = {};
 
-    vehiclesData.forEach((vehicleId, vehicleData) {
-      if (vehicleData is Map &&
-          vehicleData['companyId'] == companyId &&
-          vehicleData.containsKey('location')) {
-        final location = vehicleData['location'];
-        if (location is Map &&
-            location.containsKey('latitude') &&
-            location.containsKey('longitude')) {
-          final lat = (location['latitude'] as num).toDouble();
-          final lng = (location['longitude'] as num).toDouble();
+      for (var entry in vehiclesData.entries) {
+        final vehicleId = entry.key;
+        final vehicleData = entry.value;
 
-          final pos = LatLng(lat, lng);
+        if (vehicleData is Map &&
+            vehicleData['companyId'] == companyId &&
+            vehicleData.containsKey('location')) {
+          final location = vehicleData['location'];
+          if (location is Map &&
+              location.containsKey('latitude') &&
+              location.containsKey('longitude')) {
+            final lat = (location['latitude'] as num).toDouble();
+            final lng = (location['longitude'] as num).toDouble();
+            final pos = LatLng(lat, lng);
 
-          newMarkers[vehicleId] = Marker(
-            markerId: MarkerId(vehicleId),
-            position: pos,
-            infoWindow: InfoWindow(title: "Vehicle $vehicleId"),
-            icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
-          );
+            // 🔄 Fetch brand/model from Firestore using vehicleId
+            try {
+              final doc = await FirebaseFirestore.instance
+                  .collection('vehicles')
+                  .doc(vehicleId)
+                  .get();
+
+              String vehicleName = 'Vehicle';
+              if (doc.exists) {
+                final data = doc.data();
+                final brand = data?['brand'] ?? '';
+                final model = data?['model'] ?? '';
+                vehicleName = '$brand $model'.trim();
+              }
+
+              newMarkers[vehicleId] = Marker(
+                markerId: MarkerId(vehicleId),
+                position: pos,
+                infoWindow: InfoWindow(title: vehicleName),
+                icon: BitmapDescriptor.defaultMarkerWithHue(
+                    BitmapDescriptor.hueAzure),
+              );
+
+              if (mounted) {
+                setState(() {
+                  _vehicleMarkers = newMarkers;
+                });
+              }
+            } catch (e) {
+              print('Error fetching vehicle info from Firestore: $e');
+            }
+          }
+        }
+      }
+
+      if (mounted) {
+        setState(() {
+          _vehicleMarkers = newMarkers;
+        });
+
+        // Animate camera only if map controller is ready and markers exist
+        if (_mapController != null && _vehicleMarkers.isNotEmpty) {
+          final bounds =
+              _createBoundsFromMarkers(_vehicleMarkers.values.toList());
+          _mapController!
+              .animateCamera(CameraUpdate.newLatLngBounds(bounds, 100));
         }
       }
     });
-
-    if (mounted) {
-      setState(() {
-        _vehicleMarkers = newMarkers;
-      });
-
-      // Animate camera only if map controller is ready and markers exist
-      if (_mapController != null && _vehicleMarkers.isNotEmpty) {
-        final bounds = _createBoundsFromMarkers(_vehicleMarkers.values.toList());
-        _mapController!.animateCamera(CameraUpdate.newLatLngBounds(bounds, 100));
-      }
-    }
-  });
-}
-
+  }
 
   @override
   void initState() {
@@ -177,8 +210,6 @@ class _ActiveVehiclesPageState extends State<AdminHomePage> {
       MaterialPageRoute(builder: (context) => nextPage),
     );
   }
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -263,147 +294,163 @@ class _ActiveVehiclesPageState extends State<AdminHomePage> {
         children: [
           // Google Map
           GoogleMap(
-  initialCameraPosition: const CameraPosition(
-    target: LatLng(0, 0), // or any default location
-    zoom: 2, // zoomed out to show world, so user won't see empty space
-  ),
-  onMapCreated: (controller) {
-    _mapController = controller;
+            initialCameraPosition: const CameraPosition(
+              target: LatLng(0, 0), // or any default location
+              zoom:
+                  14.0, // zoomed out to show world, so user won't see empty space
+            ),
+            onMapCreated: (controller) {
+              _mapController = controller;
 
-    // After controller is ready, if you already have markers, center map:
-    if (_vehicleMarkers.isNotEmpty) {
-      final bounds = _createBoundsFromMarkers(_vehicleMarkers.values.toList());
-      _mapController!.animateCamera(CameraUpdate.newLatLngBounds(bounds, 100));
-    }
-  },
-  markers: Set<Marker>.of(_vehicleMarkers.values),
-  myLocationEnabled: true,
-  myLocationButtonEnabled: false,
-),
-
+              // After controller is ready, if you already have markers, center map:
+              if (_vehicleMarkers.length == 1) {
+                final marker = _vehicleMarkers.values.first;
+                _mapController!.animateCamera(
+                  CameraUpdate.newLatLngZoom(
+                      marker.position, 15), // zoom level 12 instead of bounds
+                );
+              } else if (_vehicleMarkers.length > 1) {
+                final bounds =
+                    _createBoundsFromMarkers(_vehicleMarkers.values.toList());
+                _mapController!
+                    .animateCamera(CameraUpdate.newLatLngBounds(bounds, 100));
+              }
+            },
+            markers: Set<Marker>.of(_vehicleMarkers.values),
+            myLocationEnabled: true,
+            myLocationButtonEnabled: false,
+          ),
 
           // Floating location button
-           Positioned(
-          bottom: 100,
-          right: 16,
-          child: FloatingActionButton(
-            heroTag: 'btn_center_admin_location',
-            onPressed: () {
-              if (_vehicleMarkers.isEmpty) return;
+          Positioned(
+            bottom: 100,
+            right: 16,
+            child: FloatingActionButton(
+              heroTag: 'btn_center_admin_location',
+              onPressed: () {
+                if (_vehicleMarkers.isEmpty) return;
 
-              // Compute bounds for all vehicle markers
-              LatLngBounds bounds = _createBoundsFromMarkers(_vehicleMarkers.values.toList());
+                // Compute bounds for all vehicle markers
+                LatLngBounds bounds =
+                    _createBoundsFromMarkers(_vehicleMarkers.values.toList());
 
-              _mapController?.animateCamera(CameraUpdate.newLatLngBounds(bounds, 100));
-            },
-            backgroundColor: Colors.blue,
-            tooltip: 'Center on all vehicles',
-            child: const Icon(Icons.location_searching),
-          ),
-        ),
-
-        // Bottom buttons for Add Vehicle and View Vehicle
-        Positioned(
-          bottom: 0, // just above BottomNavigationBar
-          left: 0,
-          right: 0,
-          child: Container(
-            color: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 36),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (context) => const AddCarPage()),
-                        );
-                      },
-                      icon: const Icon(Icons.add, color: Colors.white),
-                      label: const Text('Add Vehicle'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        minimumSize: const Size(160, 60),
-                        textStyle: const TextStyle(color: Colors.white, fontSize: 16),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.pushReplacement(
-                          context,
-                          MaterialPageRoute(builder: (_) => const VehicleTrackingPage()),
-                        );
-                      },
-                      icon: const Icon(Icons.list, color: Colors.white),
-                      label: const Text('View Vehicles'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.black,
-                        minimumSize: const Size(160, 60),
-                        textStyle: const TextStyle(color: Colors.white, fontSize: 16),
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+                _mapController
+                    ?.animateCamera(CameraUpdate.newLatLngBounds(bounds, 100));
+              },
+              backgroundColor: Colors.blue,
+              tooltip: 'Center on all vehicles',
+              child: const Icon(Icons.location_searching),
             ),
           ),
-        ),
-      ],
-    ),
 
-    bottomNavigationBar: BottomNavigationBar(
-      backgroundColor: Colors.white,
-      type: BottomNavigationBarType.fixed,
-      items: const <BottomNavigationBarItem>[
-        BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-        BottomNavigationBarItem(icon: Icon(Icons.directions_car), label: 'Vehicles'),
-        BottomNavigationBarItem(icon: Icon(Icons.history), label: 'History'),
-        BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
-      ],
-      currentIndex: _selectedIndex,
-      selectedItemColor: blueColor,
-      unselectedItemColor: Colors.grey,
-      showUnselectedLabels: true,
-      showSelectedLabels: true,
-      onTap: _onItemTapped,
-    ),
-  );
-}
-
-/// Helper method to create LatLngBounds from markers list
-LatLngBounds _createBoundsFromMarkers(List<Marker> markers) {
-  assert(markers.isNotEmpty);
-  double? x0, x1, y0, y1;
-  for (final marker in markers) {
-    final lat = marker.position.latitude;
-    final lng = marker.position.longitude;
-    if (x0 == null) {
-      x0 = x1 = lat;
-      y0 = y1 = lng;
-    } else {
-      if (lat < x0) x0 = lat;
-      if (lat > x1!) x1 = lat;
-      if (lng < y0!) y0 = lng;
-      if (lng > y1!) y1 = lng;
-    }
+          // Bottom buttons for Add Vehicle and View Vehicle
+          Positioned(
+            bottom: 0, // just above BottomNavigationBar
+            left: 0,
+            right: 0,
+            child: Container(
+              color: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 36),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (context) => const AddCarPage()),
+                          );
+                        },
+                        icon: const Icon(Icons.add, color: Colors.white),
+                        label: const Text('Add Vehicle'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          minimumSize: const Size(160, 60),
+                          textStyle: const TextStyle(
+                              color: Colors.white, fontSize: 16),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                                builder: (_) => const VehicleTrackingPage()),
+                          );
+                        },
+                        icon: const Icon(Icons.list, color: Colors.white),
+                        label: const Text('View Vehicles'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.black,
+                          minimumSize: const Size(160, 60),
+                          textStyle: const TextStyle(
+                              color: Colors.white, fontSize: 16),
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        backgroundColor: Colors.white,
+        type: BottomNavigationBarType.fixed,
+        items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.directions_car), label: 'Vehicles'),
+          BottomNavigationBarItem(icon: Icon(Icons.history), label: 'History'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.settings), label: 'Settings'),
+        ],
+        currentIndex: _selectedIndex,
+        selectedItemColor: blueColor,
+        unselectedItemColor: Colors.grey,
+        showUnselectedLabels: true,
+        showSelectedLabels: true,
+        onTap: _onItemTapped,
+      ),
+    );
   }
-  return LatLngBounds(southwest: LatLng(x0!, y0!), northeast: LatLng(x1!, y1!));
-}
+
+  /// Helper method to create LatLngBounds from markers list
+  LatLngBounds _createBoundsFromMarkers(List<Marker> markers) {
+    assert(markers.isNotEmpty);
+    double? x0, x1, y0, y1;
+    for (final marker in markers) {
+      final lat = marker.position.latitude;
+      final lng = marker.position.longitude;
+      if (x0 == null) {
+        x0 = x1 = lat;
+        y0 = y1 = lng;
+      } else {
+        if (lat < x0) x0 = lat;
+        if (lat > x1!) x1 = lat;
+        if (lng < y0!) y0 = lng;
+        if (lng > y1!) y1 = lng;
+      }
+    }
+    return LatLngBounds(
+        southwest: LatLng(x0!, y0!), northeast: LatLng(x1!, y1!));
+  }
 }

@@ -44,11 +44,17 @@ dependencies:
   intl: ^0.19.0
   logger: ^1.1.0
   fl_chart: ^1.0.0
+  font_awesome_flutter: ^10.5.0
+  carousel_slider: ^5.1.1 # swiper
+  smooth_page_indicator: ^1.2.1 # points indicator for swiper
+
+  flutterwave_standard: ^1.1.0
+
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-
+   
   flutter_lints: ^4.0.0
 
 flutter:

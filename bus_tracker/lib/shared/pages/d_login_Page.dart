@@ -1,3 +1,4 @@
+import 'package:bus_tracker/admin/screens/swiper.dart';
 import 'package:bus_tracker/driver/driver_home.dart';
 import 'package:bus_tracker/driver/permission_waiting.dart';
 import 'package:bus_tracker/shared/pages/c_creatAccount_Page.dart';
@@ -5,7 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:bus_tracker/shared/pages/e_forgotPassword_Page.dart';
-import 'package:bus_tracker/admin/screens/admin_home.dart';
+// import 'package:bus_tracker/admin/screens/admin_home.dart';
 import 'package:bus_tracker/core/services/google_auth.dart';
 import 'package:bus_tracker/core/utils/validators/input_validator.dart';
 import 'package:bus_tracker/core/widgets/constants.dart';
@@ -55,7 +56,7 @@ class _LoginPageState extends State<LoginPage> {
           Widget targetPage;
 
           if (role == 'admin') {
-            targetPage = const AdminHomePage();
+            targetPage = const LoginPage();
           } else if (role == 'driver') {
             final status = userDoc.get('status') ?? 'pending';
             if (status == 'approved') {
@@ -215,7 +216,7 @@ class _LoginPageState extends State<LoginPage> {
                                 String role = userDoc.get('role');
                                 Widget targetPage;
                                 if (role == 'admin') {
-                                  targetPage = const AdminHomePage();
+                                  targetPage = const CarouselPage();
                                 } else if (role == 'driver') {
                                   final status =
                                       userDoc.get('status') ?? 'pending';

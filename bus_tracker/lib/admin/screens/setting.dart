@@ -1,3 +1,4 @@
+import 'package:bus_tracker/admin/screens/add_pyment.dart';
 import 'package:bus_tracker/shared/pages/d_login_Page.dart';
 import 'package:bus_tracker/admin/screens/edit_profile.dart';
 import 'package:bus_tracker/admin/screens/admin_home.dart';
@@ -24,6 +25,26 @@ class _SettingsPageState extends State<SettingsPage> {
     if (uid == null) return 'Unknown User';
     final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
     return doc.data()?['name'] ?? 'No Name';
+  }
+
+   String? companyId;// User's temporary selection
+  Future<void> loadCompanyId() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      final adminDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      if (!adminDoc.exists) return;
+
+      final data = adminDoc.data();
+      if (data == null || data['companyId'] == null) return;
+
+      setState(() {
+        companyId = data['companyId'] as String;
+      });
+    } catch (e) {
+      debugPrint('Failed to load company ID: $e');
+    }
   }
 
   @override
@@ -112,8 +133,23 @@ class _SettingsPageState extends State<SettingsPage> {
                     );
                   },
                 ),
-                _buildListTile('Change password'),
-                _buildListTile('Add a payment method'),
+                _buildListTile(
+                  'Change password',
+                   onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const EditProfilePage()),
+                    );
+                  },),
+                _buildListTile('Add a payment method'
+                    , onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => AddPaymentMethodPage(companyId: companyId ?? '')),
+                      );
+                    },),
 
                 SwitchListTile(
                   title: const Text('Push notifications'),

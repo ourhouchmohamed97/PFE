@@ -1,3 +1,5 @@
+
+import 'package:bus_tracker/admin/screens/swiper.dart';
 import 'package:bus_tracker/shared/pages/d_login_Page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -50,40 +52,54 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
   }
 
   Future<void> checkEmailVerification() async {
-    try {
-      var user = FirebaseAuth.instance.currentUser;
-      if (user != null) {
-        await user.reload();
-        user = FirebaseAuth.instance.currentUser;
+  try {
+    var user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      await user.reload();
+      user = FirebaseAuth.instance.currentUser;
 
-        if (user!.emailVerified) {
-          // Update Firestore with UID instead of email as doc ID
-          await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
-            'emailVerified': true,
-          });
+      if (user!.emailVerified) {
+        // Update Firestore
+        final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+        await userRef.update({'emailVerified': true});
 
-          if (mounted) {
+        final userDoc = await userRef.get();
+        final role = userDoc.data()?['role'];
+
+        if (mounted) {
+          if (role == 'admin') {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(builder: (context) => const CarouselPage()),
+            );
+          } else if (role == 'driver') {
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (context) => const LoginPage()),
             );
-          }
-        } else {
-          if (mounted) {
+          } else {
             setState(() {
-              errorMessage = "Email not verified. Please check your email and verify.";
+              errorMessage = "User role not recognized.";
             });
           }
         }
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() {
-          errorMessage = "Error checking email verification: $e";
-        });
+      } else {
+        if (mounted) {
+          setState(() {
+            errorMessage = "Email not verified. Please check your email and verify.";
+          });
+        }
       }
     }
+  } catch (e) {
+    if (mounted) {
+      setState(() {
+        errorMessage = "Error checking email verification: $e";
+      });
+    }
   }
+}
+
 
   @override
   Widget build(BuildContext context) {

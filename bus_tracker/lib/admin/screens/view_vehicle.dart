@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:bus_tracker/admin/screens/vehicle_map_page.dart';
 import 'package:bus_tracker/core/models/vehicule_model.dart';
 import 'package:bus_tracker/admin/screens/admin_home.dart';
 import 'package:bus_tracker/shared/pages/notification.dart';
@@ -34,7 +35,7 @@ class VehicleTrackingPageState extends State<VehicleTrackingPage> {
   String? driverPhone;
   String? assignedDriverId;
   String? currentCompanyId;
-
+  String? vehicleId;
   String? currentVehicleId;
 
   bool isLoadingDriver = false;
@@ -706,19 +707,48 @@ Widget _buildConnectionSheet(
                       ),
                     ),
                     const SizedBox(height: 20),
-                    vehicle.photosURL.isNotEmpty
-                        ? Image.network(
-                            vehicle.photosURL.first,
-                            width: 80,
-                            height: 80,
-                            fit: BoxFit.contain,
-                          )
-                        : Container(
-                            width: 80,
-                            height: 80,
-                            color: Colors.grey[300],
-                            child: const Icon(Icons.directions_car, size: 40),
-                          ),
+                    Column(
+  children: [
+    vehicle.photosURL.isNotEmpty
+        ? Image.network(
+            vehicle.photosURL.first,
+            width: 80,
+            height: 80,
+            fit: BoxFit.contain,
+          )
+        : Container(
+            width: 80,
+            height: 80,
+            color: Colors.grey[300],
+            child: const Icon(Icons.directions_car, size: 40),
+          ),
+    const SizedBox(height: 12),
+    ElevatedButton.icon(
+  icon: const Icon(Icons.map),
+  label: const Text("Show on map"),
+  onPressed: () {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => VehicleMapPage(
+          vehicleId: vehicle.vid,
+          vehicleName: '${vehicle.brand} ${vehicle.model}',
+        ),
+      ),
+    );
+  },
+  style: ElevatedButton.styleFrom(
+    backgroundColor: Colors.blue,
+    foregroundColor: Colors.white,
+    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+    shape: RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(12),
+    ),
+  ),
+),
+
+  ],
+),
+
                   ],
                 ),
               ),

@@ -1,8 +1,15 @@
 import 'dart:async';
+import 'package:bus_tracker/shared/pages/chat.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class CallPage extends StatefulWidget {
-  const CallPage({super.key});
+  final String driverName;
+
+  const CallPage({
+    super.key,
+    this.driverName = 'Joshua',
+  });
 
   @override
   State<CallPage> createState() => _CallPageState();
@@ -10,18 +17,26 @@ class CallPage extends StatefulWidget {
 
 class _CallPageState extends State<CallPage> {
   late Timer _timer;
+  final Stopwatch _stopwatch = Stopwatch();
   int _seconds = 0;
+  String _callStatus = 'Connecting...';
 
   @override
   void initState() {
     super.initState();
     _startTimer();
+    Future.delayed(const Duration(seconds: 3), () {
+      setState(() {
+        _callStatus = 'In Call';
+      });
+    });
   }
 
   void _startTimer() {
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+    _stopwatch.start();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       setState(() {
-        _seconds++;
+        _seconds = _stopwatch.elapsed.inSeconds;
       });
     });
   }
@@ -32,9 +47,34 @@ class _CallPageState extends State<CallPage> {
     return "$minutes:$seconds";
   }
 
+  void _confirmEndCall() {
+    HapticFeedback.mediumImpact();
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text("End Call?"),
+        content: const Text("Are you sure you want to end the call?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context); // Close dialog
+              Navigator.pop(context); // Exit call screen
+            },
+            child: const Text("End", style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   void dispose() {
     _timer.cancel();
+    _stopwatch.stop();
     super.dispose();
   }
 
@@ -53,16 +93,20 @@ class _CallPageState extends State<CallPage> {
               ),
             ),
             const SizedBox(height: 20),
-            const Text("Your driver", style: TextStyle(color: Colors.grey)),
+            Text(_callStatus, style: const TextStyle(color: Colors.grey)),
             const SizedBox(height: 8),
-            const Text("Joshua", style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold)),
+            Text(
+              widget.driverName,
+              style: const TextStyle(fontSize: 26, fontWeight: FontWeight.bold),
+            ),
             const SizedBox(height: 8),
-            Text(_formatTime(_seconds), style: const TextStyle(color: Colors.black54)),
+            Text(_formatTime(_seconds),
+                style: const TextStyle(color: Colors.black54)),
             const SizedBox(height: 40),
             const CircleAvatar(
               radius: 60,
               backgroundColor: Color(0xFFDCEEFF),
-              backgroundImage: NetworkImage('https://i.imgur.com/BoN9kdC.png'), // Replace with real driver photo
+              backgroundImage: AssetImage('assets/images/profile.png'),
             ),
             const Spacer(),
             Row(
@@ -83,15 +127,33 @@ class _CallPageState extends State<CallPage> {
                   radius: 28,
                   child: IconButton(
                     icon: const Icon(Icons.call_end, color: Colors.white),
-                    onPressed: () {
-                      Navigator.pop(context);
-                    },
+                    onPressed: _confirmEndCall,
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 20),
-            const Text("Swipe up to show chat", style: TextStyle(color: Colors.black54)),
+            GestureDetector(
+              onVerticalDragEnd: (details) {
+                if (details.primaryVelocity != null &&
+                    details.primaryVelocity! < -100) {
+                  // Swiped up
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ChatPage(),
+                    ),
+                  );
+                }
+              },
+              child: const Padding(
+                padding: EdgeInsets.symmetric(vertical: 20),
+                child: Text(
+                  "Swipe up to show chat",
+                  style: TextStyle(color: Colors.black54),
+                ),
+              ),
+            ),
             const SizedBox(height: 30),
           ],
         ),
