@@ -2,6 +2,7 @@ import 'package:bus_tracker/admin/screens/historique.dart';
 import 'package:bus_tracker/admin/screens/view_vehicle.dart';
 import 'package:bus_tracker/core/models/admin_model.dart';
 import 'package:bus_tracker/core/models/driver_model.dart';
+import 'package:bus_tracker/driver/driver_home.dart';
 import 'package:bus_tracker/shared/pages/d_login_Page.dart';
 import 'package:bus_tracker/admin/screens/edit_profile.dart';
 import 'package:bus_tracker/admin/screens/admin_home.dart';
@@ -98,8 +99,6 @@ class _ProfilePageState extends State<ProfilePage> {
         return 'User';
     }
   }
-
-  
 
   @override
   Widget build(BuildContext context) {
@@ -325,15 +324,42 @@ class _ProfilePageState extends State<ProfilePage> {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () async {
-                      await AdminHomePage
-                          .cancelNotificationListener(); // Cancel the Firestore stream
+                      final user = FirebaseAuth.instance.currentUser;
+
+                      if (user != null) {
+                        try {
+                          final userDoc = await FirebaseFirestore.instance
+                              .collection('users')
+                              .doc(user.uid)
+                              .get();
+
+                          final role = userDoc.data()?['role'];
+
+                          // Cancel the right notification listener
+                          if (role == 'admin') {
+                            await AdminHomePage.cancelNotificationListener();
+                          } else if (role == 'driver') {
+                            await DriverHomePage.cancelNotificationListener();
+                          } else {
+                            print('Unknown role: $role');
+                          }
+                        } catch (e) {
+                          print(
+                              'Error while retrieving role or canceling listener: $e');
+                        }
+                      }
+
+                      // Sign out
                       await FirebaseAuth.instance.signOut();
+
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
-                              content: Text(
-                                  'You have been signed out successfully!')),
+                            content:
+                                Text('You have been signed out successfully!'),
+                          ),
                         );
+
                         Navigator.pushReplacement(
                           context,
                           MaterialPageRoute(
@@ -351,8 +377,9 @@ class _ProfilePageState extends State<ProfilePage> {
                     child: const Text(
                       'Logout',
                       style: TextStyle(
-                          color: Color.fromARGB(255, 30, 30, 30),
-                          fontWeight: FontWeight.w600),
+                        color: Color.fromARGB(255, 30, 30, 30),
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),

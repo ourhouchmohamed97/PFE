@@ -53,7 +53,7 @@
 //   Widget build(BuildContext context) {
 //     return Scaffold(
 //       appBar: const CustomAppBar(
-//         title: 'CarTrack',
+//         title: 'HayMobility',
 //       ),
 //       body: Column(
 //         mainAxisAlignment: MainAxisAlignment.center, 

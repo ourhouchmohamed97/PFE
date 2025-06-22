@@ -1,4 +1,3 @@
-
 import 'package:bus_tracker/admin/screens/swiper.dart';
 import 'package:bus_tracker/shared/pages/d_login_Page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -52,54 +51,55 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
   }
 
   Future<void> checkEmailVerification() async {
-  try {
-    var user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      await user.reload();
-      user = FirebaseAuth.instance.currentUser;
+    try {
+      var user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await user.reload();
+        user = FirebaseAuth.instance.currentUser;
 
-      if (user!.emailVerified) {
-        // Update Firestore
-        final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
-        await userRef.update({'emailVerified': true});
+        if (user!.emailVerified) {
+          // Update Firestore
+          final userRef =
+              FirebaseFirestore.instance.collection('users').doc(user.uid);
+          await userRef.update({'emailVerified': true});
 
-        final userDoc = await userRef.get();
-        final role = userDoc.data()?['role'];
+          final userDoc = await userRef.get();
+          final role = userDoc.data()?['role'];
 
-        if (mounted) {
-          if (role == 'admin') {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const CarouselPage()),
-            );
-          } else if (role == 'driver') {
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const LoginPage()),
-            );
-          } else {
+          if (mounted) {
+            if (role == 'admin') {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const CarouselPage()),
+              );
+            } else if (role == 'driver') {
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (context) => const LoginPage()),
+              );
+            } else {
+              setState(() {
+                errorMessage = "User role not recognized.";
+              });
+            }
+          }
+        } else {
+          if (mounted) {
             setState(() {
-              errorMessage = "User role not recognized.";
+              errorMessage =
+                  "Email not verified. Please check your email and verify.";
             });
           }
         }
-      } else {
-        if (mounted) {
-          setState(() {
-            errorMessage = "Email not verified. Please check your email and verify.";
-          });
-        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          errorMessage = "Error checking email verification: $e";
+        });
       }
     }
-  } catch (e) {
-    if (mounted) {
-      setState(() {
-        errorMessage = "Error checking email verification: $e";
-      });
-    }
   }
-}
-
 
   @override
   Widget build(BuildContext context) {
@@ -155,10 +155,14 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(13),
               ),
-              padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 100),
+              padding:
+                  const EdgeInsets.symmetric(vertical: 15, horizontal: 100),
             ),
             child: const Text(
               "CHECK VERIFICATION",
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              softWrap: false,
               style: TextStyle(
                 color: Colors.black,
                 fontWeight: FontWeight.bold,

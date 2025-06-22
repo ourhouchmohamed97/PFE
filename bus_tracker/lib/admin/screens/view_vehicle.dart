@@ -40,44 +40,54 @@ class VehicleTrackingPageState extends State<VehicleTrackingPage> {
 
   bool isLoadingDriver = false;
 
-Future<void> _assignDriver(String driverId) async {
-  final vehicleId = currentVehicleId;
+  Future<void> _assignDriver(String driverId) async {
+    final vehicleId = currentVehicleId;
+    print('Assigning driver to vehicleId: $currentVehicleId');
+    try {
+      final vehicleRef =
+          FirebaseFirestore.instance.collection('vehicles').doc(vehicleId);
+      final driverRef =
+          FirebaseFirestore.instance.collection('users').doc(driverId);
 
-  try {
-    final vehicleRef = FirebaseFirestore.instance.collection('vehicles').doc(vehicleId);
-    final driverRef = FirebaseFirestore.instance.collection('users').doc(driverId);
+      final vehicleSnap = await vehicleRef.get();
+      if (!vehicleSnap.exists) {
+        throw Exception('Vehicle not found.');
+      }
 
-    // Reset previous driver if needed
-    if (assignedDriverId != null && assignedDriverId != driverId) {
-      await FirebaseFirestore.instance.collection('users').doc(assignedDriverId).update({
-        'vehicleId': null,
+      // Reset previous driver if needed
+      if (assignedDriverId != null && assignedDriverId != driverId) {
+        final oldDriverRef = FirebaseFirestore.instance
+            .collection('users')
+            .doc(assignedDriverId);
+        await oldDriverRef.update({'vehicleId': null});
+      }
+
+      // Perform both updates atomically
+      final batch = FirebaseFirestore.instance.batch();
+      batch.update(vehicleRef, {'assignedDriverId': driverId});
+      batch.update(driverRef, {'vehicleId': vehicleId});
+      await batch.commit();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Conducteur affecté avec succès.')),
+        );
+      }
+
+      setState(() {
+        assignedDriverId = driverId;
       });
+    } catch (e) {
+      debugPrint('Erreur d\'affectation: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('Erreur lors de l\'affectation du conducteur.')),
+        );
+      }
     }
-
-    // Update vehicle with driverId
-    await vehicleRef.update({
-      'assignedDriverId': driverId,
-    });
-
-    // Update driver with vehicleId
-    await driverRef.update({
-      'vehicleId': vehicleId,
-    });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Conducteur affecté avec succès.')),
-    );
-
-    setState(() {
-      assignedDriverId = driverId;
-    });
-  } catch (e) {
-    debugPrint('Erreur d\'affectation: $e');
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Erreur lors de l\'affectation du conducteur.')),
-    );
   }
-}
+
   Future<void> fetchDriverInfo(String driverId) async {
     setState(() {
       isLoadingDriver = true;
@@ -250,70 +260,72 @@ Future<void> _assignDriver(String driverId) async {
     }
   }
 
-Future<void> _showDriverSelectionDialog() async {
-  final admin = FirebaseAuth.instance.currentUser;
-  if (admin == null) return;
+  Future<void> _showDriverSelectionDialog(Vehicle vehicle) async {
+    currentVehicleId = vehicle.vid;
+    final admin = FirebaseAuth.instance.currentUser;
+    if (admin == null) return;
 
-  // Get admin's companyId
-  final adminDoc = await FirebaseFirestore.instance.collection('users').doc(admin.uid).get();
-  final companyId = adminDoc.data()?['companyId'];
-  if (companyId == null) return;
-
-  try {
-    final snapshot = await FirebaseFirestore.instance
+    // Get admin's companyId
+    final adminDoc = await FirebaseFirestore.instance
         .collection('users')
-        .where('role', isEqualTo: 'driver')
-        .where('status', isEqualTo: 'approved')
-        .where('companyId', isEqualTo: companyId)
+        .doc(admin.uid)
         .get();
+    final companyId = adminDoc.data()?['companyId'];
+    if (companyId == null) return;
 
-    final drivers = snapshot.docs;
+    try {
+      final snapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .where('role', isEqualTo: 'driver')
+          .where('status', isEqualTo: 'approved')
+          .where('companyId', isEqualTo: companyId)
+          .get();
 
-    // Now show dialog with list of drivers
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Select a Driver'),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: ListView.builder(
-            shrinkWrap: true,
-            itemCount: drivers.length,
-            itemBuilder: (context, index) {
-              final driver = drivers[index];
-              return ListTile(
-                leading: const Icon(Icons.person),
-                title: Text(driver['name'] ?? 'No name'),
-                subtitle: Text(driver['email'] ?? ''),
-                onTap: () {
-                  Navigator.pop(context);
-                  _assignDriver(driver.id);
-                },
-              );
-            },
+      final drivers = snapshot.docs;
+
+      // Now show dialog with list of drivers
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Select a Driver'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: ListView.builder(
+              shrinkWrap: true,
+              itemCount: drivers.length,
+              itemBuilder: (context, index) {
+                final driver = drivers[index];
+                return ListTile(
+                  leading: const Icon(Icons.person),
+                  title: Text(driver['name'] ?? 'No name'),
+                  subtitle: Text(driver['email'] ?? ''),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _assignDriver(driver.id);
+                  },
+                );
+              },
+            ),
           ),
         ),
-      ),
-    );
-  } catch (e) {
-    debugPrint('Error fetching drivers: $e');
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Failed to load drivers.')),
-    );
+      );
+    } catch (e) {
+      debugPrint('Error fetching drivers: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to load drivers.')),
+      );
+    }
   }
-}
 
   @override
   void initState() {
     super.initState();
-    
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       checkLocationServices(context);
       _getCurrentLocation();
       _listenToUserVehicles(); // start real-time updates
       _onItemTapped(_selectedIndex);
-      
     });
   }
 
@@ -332,7 +344,7 @@ Future<void> _showDriverSelectionDialog() async {
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
-          'CarTrack',
+          'HayMobility',
           style: GoogleFonts.lato(
             fontSize: 24,
             fontWeight: FontWeight.bold,
@@ -489,7 +501,7 @@ Future<void> _showDriverSelectionDialog() async {
                                                                   .circular(12),
                                                         ),
                                                         child: Text(
-                                                          vehicle.type,
+                                                          vehicle.model,
                                                           style: TextStyle(
                                                             color: Colors
                                                                 .blue.shade700,
@@ -518,7 +530,7 @@ Future<void> _showDriverSelectionDialog() async {
                                                               16),
                                                     ),
                                                     child: Text(
-                                                      'Matricule: ${vehicle.matricule}',
+                                                      ' ${vehicle.matricule}',
                                                       style: TextStyle(
                                                         color: Colors
                                                             .grey.shade800,
@@ -566,7 +578,7 @@ Future<void> _showDriverSelectionDialog() async {
                           driverEmail: driverEmail,
                           driverPhone: driverPhone,
                           onAssignDriver: () {
-                            _showDriverSelectionDialog();
+                            _showDriverSelectionDialog(_selectedVehicle!);
                           },
                         ),
                       );
@@ -708,56 +720,55 @@ Widget _buildConnectionSheet(
                     ),
                     const SizedBox(height: 20),
                     Column(
-  children: [
-    vehicle.photosURL.isNotEmpty
-        ? Image.network(
-            vehicle.photosURL.first,
-            width: 80,
-            height: 80,
-            fit: BoxFit.contain,
-          )
-        : Container(
-            width: 80,
-            height: 80,
-            color: Colors.grey[300],
-            child: const Icon(Icons.directions_car, size: 40),
-          ),
-    const SizedBox(height: 12),
-    ElevatedButton.icon(
-  icon: const Icon(Icons.map),
-  label: const Text("Show on map"),
-  onPressed: () {
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => VehicleMapPage(
-          vehicleId: vehicle.vid,
-          vehicleName: '${vehicle.brand} ${vehicle.model}',
-        ),
-      ),
-    );
-  },
-  style: ElevatedButton.styleFrom(
-    backgroundColor: Colors.blue,
-    foregroundColor: Colors.white,
-    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(12),
-    ),
-  ),
-),
-
-  ],
-),
-
+                      children: [
+                        vehicle.photosURL.isNotEmpty
+                            ? Image.network(
+                                vehicle.photosURL.first,
+                                width: 80,
+                                height: 80,
+                                fit: BoxFit.contain,
+                              )
+                            : Container(
+                                width: 80,
+                                height: 80,
+                                color: Colors.grey[300],
+                                child:
+                                    const Icon(Icons.directions_car, size: 40),
+                              ),
+                        const SizedBox(height: 12),
+                        ElevatedButton.icon(
+                          icon: const Icon(Icons.map),
+                          label: const Text("Show on map"),
+                          onPressed: () {
+                            Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => VehicleMapPage(
+                                  vehicleId: vehicle.vid,
+                                  vehicleName:
+                                      '${vehicle.brand} ${vehicle.model}',
+                                ),
+                              ),
+                            );
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.blue,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 10),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ],
                 ),
               ),
-
               const SizedBox(height: 30),
               const Text('Car details',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
               const SizedBox(height: 16),
-
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -785,13 +796,10 @@ Widget _buildConnectionSheet(
                   ),
                 ],
               ),
-
               const Divider(height: 32),
-
               const Text('Driver info',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
               const SizedBox(height: 16),
-
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -813,9 +821,7 @@ Widget _buildConnectionSheet(
                           _buildInfoRow(Icons.email, 'Email', driverEmail!),
                         if ((driverPhone ?? '').isNotEmpty)
                           _buildInfoRow(Icons.phone, 'Phone', driverPhone!),
-
                         const SizedBox(height: 12),
-
                         ElevatedButton.icon(
                           onPressed: onAssignDriver,
                           icon: const Icon(Icons.person_add),
@@ -825,10 +831,9 @@ Widget _buildConnectionSheet(
                                 : 'Change Driver',
                           ),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor:
-                                vehicle.assignedDriverId == null
-                                    ? Colors.green
-                                    : Colors.orange,
+                            backgroundColor: vehicle.assignedDriverId == null
+                                ? Colors.green
+                                : Colors.orange,
                             foregroundColor: Colors.white,
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 12),
@@ -842,9 +847,7 @@ Widget _buildConnectionSheet(
                   ),
                 ],
               ),
-
               const Divider(height: 32),
-
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -870,9 +873,7 @@ Widget _buildConnectionSheet(
                   ),
                 ],
               ),
-
               const SizedBox(height: 30),
-
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(

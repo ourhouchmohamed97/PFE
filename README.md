@@ -1,4 +1,4 @@
-# 🚗 CarTrack — Smart Car Rental & Tracking App
+# 🚗 HayMobility — Smart Car Rental & Tracking App
 
 > Your all-in-one solution for managing, renting, and tracking vehicles in real-time using Flutter & Firebase.
 
@@ -53,6 +53,6 @@
 
 1. **Clone the repo**
    ```bash
-   git clone https://github.com/yourusername/CarTrack.git
-   cd CarTrack
+   git clone https://github.com/yourusername/HayMobility.git
+   cd HayMobility
    flutter run

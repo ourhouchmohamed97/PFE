@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'dart:ui' as ui;
+import 'package:bus_tracker/admin/screens/setting.dart';
+import 'package:bus_tracker/core/widgets/constants.dart';
+import 'package:bus_tracker/driver/vehicleinfo.dart';
 import 'package:bus_tracker/shared/pages/notification.dart';
 import 'package:bus_tracker/admin/screens/profile.dart';
-// import 'package:bus_tracker/shared/pages/d_login_Page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart'; 
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/services.dart';
@@ -27,28 +29,54 @@ class DriverHomePage extends StatefulWidget {
 }
 
 class _DriverHomePageState extends State<DriverHomePage> {
+  int _selectedIndex = 0;
   GoogleMapController? _mapController;
   LatLng? _userLocation;
   StreamSubscription<Position>? _locationSubscription;
   BitmapDescriptor? _carIcon;
   String? _companyId;
-  final String _vehicleId = "2ri5MdmmCgUrlFDNLUr8";
+
+  // Changed from final to nullable String for dynamic vehicle ID
+  String? _vehicleId; 
   late DatabaseReference _vehicleRef;
   int _unreadCount = 0;
 
   @override
   void initState() {
     super.initState();
-    _vehicleRef = FirebaseDatabase.instanceFor(
-      app: Firebase.app(),
-      databaseURL:
-          'https://bustracker-eabea-default-rtdb.europe-west1.firebasedatabase.app',
-    ).ref("vehicles/$_vehicleId");
-
     _loadCarIcon();
     _checkPermissionsAndStartTracking();
     _fetchCompanyIdAndInit();
+    _fetchVehicleId(); // <-- fetch vehicleId dynamically here
     _listenNotifications();
+  }
+
+  Future<void> _fetchVehicleId() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      if (!userDoc.exists) return;
+
+      final data = userDoc.data();
+      if (data == null || data['vehicleId'] == null) return;
+
+      final fetchedVehicleId = data['vehicleId'] as String;
+
+      if (mounted) {
+        setState(() {
+          _vehicleId = fetchedVehicleId;
+          _vehicleRef = FirebaseDatabase.instanceFor(
+            app: Firebase.app(),
+            databaseURL:
+                'https://bustracker-eabea-default-rtdb.europe-west1.firebasedatabase.app',
+          ).ref("vehicles/$_vehicleId");
+        });
+      }
+    } catch (e) {
+      debugPrint('Failed to fetch vehicleId for driver: $e');
+    }
   }
 
   Future<void> _fetchCompanyIdAndInit() async {
@@ -64,11 +92,13 @@ class _DriverHomePageState extends State<DriverHomePage> {
 
       _companyId = data['companyId'] as String;
 
-      _vehicleRef = FirebaseDatabase.instanceFor(
-        app: Firebase.app(),
-        databaseURL:
-            'https://bustracker-eabea-default-rtdb.europe-west1.firebasedatabase.app',
-      ).ref("vehicles/$_vehicleId");
+      if (_vehicleId != null) {
+        _vehicleRef = FirebaseDatabase.instanceFor(
+          app: Firebase.app(),
+          databaseURL:
+              'https://bustracker-eabea-default-rtdb.europe-west1.firebasedatabase.app',
+        ).ref("vehicles/$_vehicleId");
+      }
 
       await _loadCarIcon();
       await _checkPermissionsAndStartTracking();
@@ -91,7 +121,7 @@ class _DriverHomePageState extends State<DriverHomePage> {
   }
 
   Future<void> _loadCarIcon() async {
-    _carIcon = await getResizedBitmapDescriptor('assets/images/carloc.png', 100, 100);
+    _carIcon = await getResizedBitmapDescriptor('assets/images/Car Location.png', 100, 100);
   }
 
   Future<void> _checkPermissionsAndStartTracking() async {
@@ -119,6 +149,11 @@ class _DriverHomePageState extends State<DriverHomePage> {
   }
 
   void _startListeningLocation() {
+    if (_vehicleId == null) {
+      debugPrint("Vehicle ID is null, cannot start location tracking");
+      return;
+    }
+
     _locationSubscription = Geolocator.getPositionStream(
       locationSettings: const LocationSettings(
         accuracy: LocationAccuracy.high,
@@ -168,6 +203,38 @@ class _DriverHomePageState extends State<DriverHomePage> {
     });
   }
 
+  Future<void> _openVehicleInfoPage() async {
+    if (_vehicleId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No vehicle assigned')),
+      );
+      return;
+    }
+
+    try {
+      final doc = await FirebaseFirestore.instance.collection('vehicles').doc(_vehicleId).get();
+
+      if (!doc.exists) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Vehicle not found')),
+        );
+        return;
+      }
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const VehicleInfoPage(),
+        ),
+      );
+    } catch (e) {
+      debugPrint('Error fetching vehicle: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to load vehicle info')),
+      );
+    }
+  }
+
   @override
   void dispose() {
     _locationSubscription?.cancel();
@@ -176,36 +243,58 @@ class _DriverHomePageState extends State<DriverHomePage> {
     super.dispose();
   }
 
- 
-void _listenNotifications() {
-  final user = FirebaseAuth.instance.currentUser;
-  if (user == null) return;
+  void _listenNotifications() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
 
-  DriverHomePage._notificationSubscription = FirebaseFirestore.instance
-      .collection('notifications')
-      .where('targetUserUid', isEqualTo: user.uid)
-      .where('companyId', isEqualTo: _companyId)
-      .orderBy('timestamp', descending: true)
-      .snapshots()
-      .listen((snapshot) {
-    final unread = snapshot.docs
-        .where((doc) => !(doc.data()['isRead'] ?? true))
-        .length;
+    DriverHomePage._notificationSubscription = FirebaseFirestore.instance
+        .collection('notifications')
+        .where('targetUserUid', isEqualTo: user.uid)
+        .where('companyId', isEqualTo: _companyId)
+        .orderBy('timestamp', descending: true)
+        .snapshots()
+        .listen((snapshot) {
+      final unread = snapshot.docs
+          .where((doc) => !(doc.data()['isRead'] ?? true))
+          .length;
 
-    if (mounted) {
-      setState(() {
-        _unreadCount = unread;
-      });
+      if (mounted) {
+        setState(() {
+          _unreadCount = unread;
+        });
+      }
+    });
+  }
+
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+
+    switch (index) {
+      case 1:
+        _openVehicleInfoPage();
+        break;
+      case 2:
+        // TODO: Implement History page navigation
+        break;
+      case 3:
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const SettingsPage()),
+        );
+        break;
+      default:
+        return;
     }
-  });
-}
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'CarTrack',
+          'HayMobility',
           style: GoogleFonts.lato(
             fontSize: 24,
             fontWeight: FontWeight.bold,
@@ -263,7 +352,7 @@ void _listenNotifications() {
               backgroundImage: AssetImage('assets/images/profile.png'),
             ),
           ),
-          
+
           const SizedBox(width: 8),
         ],
         backgroundColor: Colors.white,
@@ -288,6 +377,24 @@ void _listenNotifications() {
                 )
               },
             ),
+      bottomNavigationBar: BottomNavigationBar(
+        backgroundColor: Colors.white,
+        type: BottomNavigationBarType.fixed,
+        items: const <BottomNavigationBarItem>[
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.directions_car), label: 'Vehicles'),
+          BottomNavigationBarItem(icon: Icon(Icons.history), label: 'History'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.settings), label: 'Settings'),
+        ],
+        currentIndex: _selectedIndex,
+        selectedItemColor: blueColor,
+        unselectedItemColor: Colors.grey,
+        showUnselectedLabels: true,
+        showSelectedLabels: true,
+        onTap: _onItemTapped,
+      ),
     );
   }
 }

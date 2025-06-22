@@ -1,3 +1,4 @@
+import 'package:bus_tracker/admin/screens/admin_home.dart';
 import 'package:bus_tracker/admin/screens/swiper.dart';
 import 'package:bus_tracker/driver/driver_home.dart';
 import 'package:bus_tracker/driver/permission_waiting.dart';
@@ -56,7 +57,7 @@ class _LoginPageState extends State<LoginPage> {
           Widget targetPage;
 
           if (role == 'admin') {
-            targetPage = const LoginPage();
+            targetPage = const AdminHomePage();
           } else if (role == 'driver') {
             final status = userDoc.get('status') ?? 'pending';
             if (status == 'approved') {

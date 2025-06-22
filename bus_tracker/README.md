@@ -21,6 +21,6 @@ samples, guidance on mobile development, and a full API reference.
 
 1. **Clone the repo**
    ```bash
-   git clone https://github.com/yourusername/CarTrack.git
-   cd CarTrack
+   git clone https://github.com/yourusername/HayMobility.git
+   cd HayMobility
    flutter run

@@ -1,4 +1,6 @@
 import 'package:bus_tracker/admin/screens/add_pyment.dart';
+import 'package:bus_tracker/driver/driver_home.dart';
+import 'package:bus_tracker/driver/vehicleinfo.dart';
 import 'package:bus_tracker/shared/pages/d_login_Page.dart';
 import 'package:bus_tracker/admin/screens/edit_profile.dart';
 import 'package:bus_tracker/admin/screens/admin_home.dart';
@@ -9,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class SettingsPage extends StatefulWidget {
+  
   const SettingsPage({super.key});
 
   @override
@@ -16,6 +19,7 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
+  String? userRole;
   bool _darkModeEnabled = false;
   bool _pushNotificationsEnabled = true;
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -44,6 +48,26 @@ class _SettingsPageState extends State<SettingsPage> {
       });
     } catch (e) {
       debugPrint('Failed to load company ID: $e');
+    }
+  }
+   @override
+  void initState() {
+    super.initState();
+    loadUserRole();
+    loadCompanyId();
+  }
+  Future<void> loadUserRole() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    try {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      if (!doc.exists) return;
+      setState(() {
+        userRole = doc.data()?['role'] ?? 'driver'; // Par défaut 'driver'
+      });
+    } catch (e) {
+      debugPrint('Erreur lors du chargement du rôle utilisateur: $e');
     }
   }
 
@@ -235,34 +259,62 @@ class _SettingsPageState extends State<SettingsPage> {
         showUnselectedLabels: true,
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.directions_car), label: 'Vehicles'),
+          BottomNavigationBarItem(icon: Icon(Icons.directions_car), label: 'Vehicles'),
           BottomNavigationBarItem(icon: Icon(Icons.history), label: 'History'),
-          BottomNavigationBarItem(
-              icon: Icon(Icons.settings), label: 'Settings'),
+          BottomNavigationBarItem(icon: Icon(Icons.settings), label: 'Settings'),
         ],
         onTap: (index) {
-          switch (index) {
-            case 0:
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => const AdminHomePage()),
-              );
-              break;
-            case 1:
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => const VehicleTrackingPage()),
-              );
-              break;
-            case 2:
-              // History page (implement later)
-              break;
-            case 3:
-              break;
+          if (userRole == 'admin') {
+            switch (index) {
+              case 0:
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AdminHomePage()),
+                );
+                break;
+              case 1:
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const VehicleTrackingPage()),
+                );
+                break;
+              case 2:
+                // TODO: admin history page
+                break;
+              case 3:
+                // Already on settings, do nothing or refresh
+                break;
+            }
+          } else if (userRole == 'driver') {
+            switch (index) {
+              case 0:
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const DriverHomePage()),
+                );
+                break;
+              case 1:
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => const VehicleInfoPage()),
+                );
+                break;
+              case 2:
+                // TODO: driver history page
+                break;
+              case 3:
+                // Already on settings, do nothing or refresh
+                break;
+            }
+          } else {
+            // Role pas encore chargé ou inconnu, peut-être afficher un message ou loader
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('User role loading, please wait...')),
+            );
           }
         },
       ),
+    
     );
   }
 

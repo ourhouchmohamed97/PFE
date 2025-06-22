@@ -111,7 +111,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: const CustomAppBar(title: 'CarTrack'),
+      appBar: const CustomAppBar(title: 'HayMobility'),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(30),
         child: Form(

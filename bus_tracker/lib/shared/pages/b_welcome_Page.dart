@@ -40,7 +40,7 @@ class Welcome extends StatelessWidget {
                     ),
                   ),
 
-                  const SizedBox(height: 180),
+                  const SizedBox(height: 150),
                   Container(
                     width: 146,
                     height: 146,
@@ -61,13 +61,13 @@ class Welcome extends StatelessWidget {
                   const Padding(
                     padding: EdgeInsets.all(15.0),
                     child: Text(
-                      'CarTrack',
+                      'HayMobility',
                       style:
                           TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                     ),
                   ),
 
-                  const SizedBox(height: 180),
+                  const SizedBox(height: 90),
                   TextButton(
                       onPressed: () {
                         Navigator.push(

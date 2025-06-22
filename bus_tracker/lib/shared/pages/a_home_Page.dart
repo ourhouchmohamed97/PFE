@@ -1,4 +1,4 @@
-import 'package:bus_tracker/admin/screens/admin_home.dart';
+// import 'package:bus_tracker/admin/screens/admin_home.dart';
 import 'package:bus_tracker/driver/permission_waiting.dart';
 import 'package:bus_tracker/shared/pages/redirect_by_role.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -30,7 +30,7 @@ class HomepageState extends State<Homepage> {
       if (!mounted) return;
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => const  RedirectByRolePage()),
+        MaterialPageRoute(builder: (context) => const  Welcome()),
       );
     } else {
       // User is signed in, fetch user role from Firestore
@@ -50,7 +50,7 @@ class HomepageState extends State<Homepage> {
 
       Widget nextPage;
       if (role == 'admin') {
-        nextPage = const AdminHomePage();
+        nextPage = const Welcome();
       } else if (role == 'driver') {
         nextPage =  DriverWaitingForPermissionPage();
       } else {
@@ -119,7 +119,7 @@ class HomepageState extends State<Homepage> {
                   const Padding(
                     padding: EdgeInsets.all(15.0),
                     child: Text(
-                      'CarTrack',
+                      'HayMobility',
                       style:
                           TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                     ),
