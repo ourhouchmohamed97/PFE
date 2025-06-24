@@ -47,8 +47,8 @@ dependencies:
   font_awesome_flutter: ^10.5.0
   carousel_slider: ^5.1.1 # swiper
   smooth_page_indicator: ^1.2.1 # points indicator for swiper
-
   flutterwave_standard: ^1.1.0
+  rename: 2.1.1
 
 
 dev_dependencies:

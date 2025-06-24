@@ -103,7 +103,7 @@ Future<void> _loadCarIcon() async {
     });
   }
 
-  void _listenVehicleLocations() {
+void _listenVehicleLocations() async {
   if (companyId == null) return;
 
   final vehiclesRef = FirebaseDatabase.instanceFor(
@@ -115,56 +115,68 @@ Future<void> _loadCarIcon() async {
   _vehiclesSubscription = vehiclesRef.onValue.listen((event) async {
     final vehiclesData = event.snapshot.value as Map<dynamic, dynamic>?;
 
-    if (vehiclesData == null) return;
-
     final Map<String, Marker> newMarkers = {};
 
-    for (var entry in vehiclesData.entries) {
-      final vehicleId = entry.key;
-      final vehicleData = entry.value;
+    if (vehiclesData != null) {
+      for (var entry in vehiclesData.entries) {
+        final vehicleId = entry.key;
+        final vehicleData = entry.value;
 
-      if (vehicleData is Map &&
-          vehicleData['companyId'] == companyId &&
-          vehicleData.containsKey('location')) {
-        final location = vehicleData['location'];
-        if (location is Map &&
-            location.containsKey('latitude') &&
-            location.containsKey('longitude')) {
-          final lat = (location['latitude'] as num).toDouble();
-          final lng = (location['longitude'] as num).toDouble();
-          final pos = LatLng(lat, lng);
+        if (vehicleData is Map &&
+            vehicleData['companyId'] == companyId &&
+            vehicleData.containsKey('location')) {
+          final location = vehicleData['location'];
+          if (location is Map &&
+              location.containsKey('latitude') &&
+              location.containsKey('longitude')) {
+            final lat = (location['latitude'] as num).toDouble();
+            final lng = (location['longitude'] as num).toDouble();
+            final pos = LatLng(lat, lng);
 
-          // 🔄 Fetch brand/model from Firestore using vehicleId
-          try {
-            final doc = await FirebaseFirestore.instance
-                .collection('vehicles')
-                .doc(vehicleId)
-                .get();
+            // 🔄 Fetch brand/model from Firestore using vehicleId
+            try {
+              final doc = await FirebaseFirestore.instance
+                  .collection('vehicles')
+                  .doc(vehicleId)
+                  .get();
 
-            String vehicleName = 'Vehicle';
-            if (doc.exists) {
-              final data = doc.data();
-              final brand = data?['brand'] ?? '';
-              final model = data?['model'] ?? '';
-              vehicleName = '$brand $model'.trim();
+              String vehicleName = 'Vehicle';
+              if (doc.exists) {
+                final data = doc.data();
+                final brand = data?['brand'] ?? '';
+                final model = data?['model'] ?? '';
+                vehicleName = '$brand $model'.trim();
+              }
+
+              newMarkers[vehicleId] = Marker(
+                markerId: MarkerId(vehicleId),
+                position: pos,
+                infoWindow: InfoWindow(title: vehicleName),
+                icon: _carIcon ?? BitmapDescriptor.defaultMarker,
+              );
+            } catch (e) {
+              print('Error fetching vehicle info from Firestore: $e');
             }
-
-            newMarkers[vehicleId] = Marker(
-              markerId: MarkerId(vehicleId),
-              position: pos,
-              infoWindow: InfoWindow(title: vehicleName),
-              icon: _carIcon ?? BitmapDescriptor.defaultMarker, // Use custom icon here
-            );
-
-            if (mounted) {
-              setState(() {
-                _vehicleMarkers = newMarkers;
-              });
-            }
-          } catch (e) {
-            print('Error fetching vehicle info from Firestore: $e');
           }
         }
+      }
+    }
+
+    // ✅ If no vehicles found, show user's location
+    if (newMarkers.isEmpty) {
+      try {
+        final position = await Geolocator.getCurrentPosition(
+            desiredAccuracy: LocationAccuracy.high);
+        final userLatLng = LatLng(position.latitude, position.longitude);
+
+        newMarkers['user'] = Marker(
+          markerId: const MarkerId('user_location'),
+          position: userLatLng,
+          infoWindow: const InfoWindow(title: 'Votre position'),
+          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
+        );
+      } catch (e) {
+        print('Erreur lors de la récupération de la position utilisateur: $e');
       }
     }
 
@@ -172,15 +184,10 @@ Future<void> _loadCarIcon() async {
       setState(() {
         _vehicleMarkers = newMarkers;
       });
-
-      // Animate camera only if map controller is ready and markers exist
-      if (_mapController != null && _vehicleMarkers.isNotEmpty) {
-        final bounds = _createBoundsFromMarkers(_vehicleMarkers.values.toList());
-        _mapController!.animateCamera(CameraUpdate.newLatLngBounds(bounds, 100));
-      }
     }
   });
 }
+
   @override
 void initState() {
   super.initState();

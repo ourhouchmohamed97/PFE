@@ -1,4 +1,4 @@
-import 'package:bus_tracker/admin/screens/admin_home.dart';
+// import 'package:bus_tracker/admin/screens/admin_home.dart';
 import 'package:bus_tracker/admin/screens/swiper.dart';
 import 'package:bus_tracker/driver/driver_home.dart';
 import 'package:bus_tracker/driver/permission_waiting.dart';
@@ -57,7 +57,7 @@ class _LoginPageState extends State<LoginPage> {
           Widget targetPage;
 
           if (role == 'admin') {
-            targetPage = const AdminHomePage();
+            targetPage = const CarouselPage();
           } else if (role == 'driver') {
             final status = userDoc.get('status') ?? 'pending';
             if (status == 'approved') {
@@ -130,7 +130,7 @@ class _LoginPageState extends State<LoginPage> {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Scaffold(
-        appBar: const CustomAppBar(title: 'TRIPS'),
+        appBar: const CustomAppBar(title: 'HayMobility'),
         body: Padding(
           padding: const EdgeInsets.all(30.0),
           child: SingleChildScrollView(
@@ -205,7 +205,7 @@ class _LoginPageState extends State<LoginPage> {
                         onTap: () async {
                           final user = await AuthService().signInWithGoogle();
                           if (user != null) {
-                            if (user.emailVerified ||
+                            if (user.emailVerified || 
                                 user.providerData
                                     .any((p) => p.providerId == 'google.com')) {
                               // Fetch role from Firestore

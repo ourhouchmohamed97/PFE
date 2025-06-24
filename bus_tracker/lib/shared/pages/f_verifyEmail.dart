@@ -70,7 +70,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
             if (role == 'admin') {
               Navigator.pushReplacement(
                 context,
-                MaterialPageRoute(builder: (context) => const CarouselPage()),
+                MaterialPageRoute(builder: (context) => const LoginPage()),
               );
             } else if (role == 'driver') {
               Navigator.pushReplacement(
@@ -105,7 +105,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: const CustomAppBar(title: 'TRIPS'),
+      appBar: const CustomAppBar(title: 'HayMobility'),
       body: _buildBody(context),
     );
   }
@@ -155,14 +155,10 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(13),
               ),
-              padding:
-                  const EdgeInsets.symmetric(vertical: 15, horizontal: 100),
+              padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 30),
             ),
             child: const Text(
               "CHECK VERIFICATION",
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              softWrap: false,
               style: TextStyle(
                 color: Colors.black,
                 fontWeight: FontWeight.bold,

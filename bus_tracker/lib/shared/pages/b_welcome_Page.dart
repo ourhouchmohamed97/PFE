@@ -67,7 +67,7 @@ class Welcome extends StatelessWidget {
                     ),
                   ),
 
-                  const SizedBox(height: 90),
+                  const SizedBox(height: 200),
                   TextButton(
                       onPressed: () {
                         Navigator.push(

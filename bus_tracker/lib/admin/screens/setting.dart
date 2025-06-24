@@ -1,4 +1,5 @@
 import 'package:bus_tracker/admin/screens/add_pyment.dart';
+import 'package:bus_tracker/admin/screens/subscrib_plan.dart';
 import 'package:bus_tracker/driver/driver_home.dart';
 import 'package:bus_tracker/driver/vehicleinfo.dart';
 import 'package:bus_tracker/shared/pages/d_login_Page.dart';
@@ -158,12 +159,12 @@ class _SettingsPageState extends State<SettingsPage> {
                   },
                 ),
                 _buildListTile(
-                  'Change password',
+                  'Upgrade to premium',
                    onTap: () {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (context) => const EditProfilePage()),
+                          builder: (context) => const SubscriptionPlanPage()),
                     );
                   },),
                 _buildListTile('Add a payment method'

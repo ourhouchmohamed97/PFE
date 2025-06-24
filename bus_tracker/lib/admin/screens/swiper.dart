@@ -30,7 +30,7 @@ class _CarouselPageState extends State<CarouselPage> {
 
   final List<FeatureCard> appFeatures = [
     FeatureCard(
-      title: "Welcome to Smiya D App",
+      title: "Welcome to HayMobility",
       description:
           "Track and manage your activity effortlessly. Let us simplify your day with smart tools designed just for you.",
       imagePath: 'assets/images/welcome.png',

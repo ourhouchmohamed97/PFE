@@ -200,7 +200,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                 const Text("Are you the first admin or joining an existing company?",
                     style: TextStyle(fontWeight: FontWeight.bold)),
                 ListTile(
-                  title: const Text('First Admin (Create a new company)'),
+                  title: const Text('First Admin'),
                   leading: Radio<AdminType>(
                     value: AdminType.firstAdmin,
                     groupValue: _adminType,
@@ -210,7 +210,7 @@ class _CreateAccountScreenState extends State<CreateAccountScreen> {
                   ),
                 ),
                 ListTile(
-                  title: const Text('Another Admin (Join existing company)'),
+                  title: const Text('Another Admin'),
                   leading: Radio<AdminType>(
                     value: AdminType.anotherAdmin,
                     groupValue: _adminType,
