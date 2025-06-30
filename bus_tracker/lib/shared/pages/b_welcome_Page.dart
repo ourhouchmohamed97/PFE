@@ -92,7 +92,7 @@ class Welcome extends StatelessWidget {
         ),
       ),
       bottomNavigationBar: CustomBottomBar(
-        text: 'Sign Up',
+        text: 'Sign in',
         onTap: () {
           Navigator.push(
             context,

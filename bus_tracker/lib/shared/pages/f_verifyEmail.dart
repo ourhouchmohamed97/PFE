@@ -160,7 +160,7 @@ class _EmailVerificationPageState extends State<EmailVerificationPage> {
             child: const Text(
               "CHECK VERIFICATION",
               style: TextStyle(
-                color: Colors.black,
+                color: Color.fromARGB(255, 255, 255, 255),
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
               ),

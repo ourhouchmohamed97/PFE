@@ -51,33 +51,42 @@ class _DriverHomePageState extends State<DriverHomePage> {
     _listenNotifications();
   }
 
-  Future<void> _fetchVehicleId() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+Future<void> _fetchVehicleId() async {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) return;
 
-    try {
-      final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-      if (!userDoc.exists) return;
+  try {
+    // Query vehicles where driverId == current user's uid
+    final querySnapshot = await FirebaseFirestore.instance
+        .collection('vehicles')
+        .where('assignedDriverId', isEqualTo: user.uid)
+        .limit(1)
+        .get();
 
-      final data = userDoc.data();
-      if (data == null || data['vehicleId'] == null) return;
-
-      final fetchedVehicleId = data['vehicleId'] as String;
-
-      if (mounted) {
-        setState(() {
-          _vehicleId = fetchedVehicleId;
-          _vehicleRef = FirebaseDatabase.instanceFor(
-            app: Firebase.app(),
-            databaseURL:
-                'https://bustracker-eabea-default-rtdb.europe-west1.firebasedatabase.app',
-          ).ref("vehicles/$_vehicleId");
-        });
-      }
-    } catch (e) {
-      debugPrint('Failed to fetch vehicleId for driver: $e');
+    if (querySnapshot.docs.isEmpty) {
+      debugPrint("No vehicle assigned to this driver.");
+      return;
     }
+
+    final vehicleDoc = querySnapshot.docs.first;
+    final fetchedVehicleId = vehicleDoc.id;
+
+    if (mounted) {
+      setState(() {
+        _vehicleId = fetchedVehicleId;
+        _vehicleRef = FirebaseDatabase.instanceFor(
+          app: Firebase.app(),
+          databaseURL: 'https://bustracker-eabea-default-rtdb.europe-west1.firebasedatabase.app',
+        ).ref("vehicles/$_vehicleId");
+      });
+
+      _startListeningLocation(); // start only when vehicle ID is ready
+    }
+  } catch (e) {
+    debugPrint('Error fetching vehicle for driver: $e');
   }
+}
+
 
   Future<void> _fetchCompanyIdAndInit() async {
     final user = FirebaseAuth.instance.currentUser;

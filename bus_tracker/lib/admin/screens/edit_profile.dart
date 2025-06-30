@@ -23,9 +23,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
   final TextEditingController usernameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController phoneController = TextEditingController();
-  final TextEditingController currentPasswordController = TextEditingController();
+  final TextEditingController currentPasswordController =
+      TextEditingController();
   final TextEditingController newPasswordController = TextEditingController();
-  final TextEditingController confirmPasswordController = TextEditingController();
+  final TextEditingController confirmPasswordController =
+      TextEditingController();
 
   bool _isLoading = false;
   bool _showPasswordFields = false;
@@ -75,7 +77,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
       String? uploadedUrl;
       if (_imageFile != null) {
-        final ref = FirebaseStorage.instance.ref().child('profile_pictures/${user!.uid}.jpg');
+        final ref = FirebaseStorage.instance
+            .ref()
+            .child('profile_pictures/${user!.uid}.jpg');
         await ref.putFile(_imageFile!);
         uploadedUrl = await ref.getDownloadURL();
       }
@@ -147,7 +151,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
     );
   }
 
-  Widget _formField(String label, TextEditingController controller, {bool obscure = false}) {
+  Widget _formField(String label, TextEditingController controller,
+      {bool obscure = false}) {
     return TextField(
       controller: controller,
       obscureText: obscure,
@@ -168,7 +173,17 @@ class _EditProfilePageState extends State<EditProfilePage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
       appBar: AppBar(
-        title: const Text("Edit Profile"),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios,
+              color: Color.fromARGB(255, 255, 255, 255)),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
+        title: const Text(
+          "Edit Profile",
+          style: TextStyle(color: Colors.white),
+        ),
         backgroundColor: Colors.blue.shade800,
       ),
       body: _isLoading
@@ -185,8 +200,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         backgroundImage: _imageFile != null
                             ? FileImage(_imageFile!)
                             : (imageUrl != null
-                                ? NetworkImage(imageUrl!)
-                                : const AssetImage("assets/images/profile.png"))
+                                    ? NetworkImage(imageUrl!)
+                                    : const AssetImage(
+                                        "assets/images/profile.png"))
                                 as ImageProvider,
                       ),
                       Positioned(
@@ -195,7 +211,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
                         child: CircleAvatar(
                           backgroundColor: Colors.white,
                           child: IconButton(
-                            icon: const Icon(Icons.camera_alt, color: Colors.blueAccent),
+                            icon: const Icon(Icons.camera_alt,
+                                color: Colors.blueAccent),
                             onPressed: _pickImage,
                           ),
                         ),
@@ -210,32 +227,42 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   _formField("Phone", phoneController),
                   const SizedBox(height: 16),
                   if (_showPasswordFields) ...[
-                    _formField("New Password", newPasswordController, obscure: true),
+                    _formField("New Password", newPasswordController,
+                        obscure: true),
                     const SizedBox(height: 16),
-                    _formField("Confirm Password", confirmPasswordController, obscure: true),
+                    _formField("Confirm Password", confirmPasswordController,
+                        obscure: true),
                     const SizedBox(height: 16),
                   ] else
                     Center(
                       child: TextButton(
                         onPressed: _promptCurrentPassword,
-                        child: const Text("Change Password", style: TextStyle(color: Colors.blueAccent, fontSize: 16, fontWeight: FontWeight.bold)),
+                        child: const Text("Change Password",
+                            style: TextStyle(
+                                color: Colors.blueAccent,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold)),
                       ),
                     ),
                   const SizedBox(height: 24),
                   ElevatedButton(
                     onPressed: _updateProfile,
-                     child: const Text(
+                    child: const Text(
                       "Save Changes",
-                      style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.blue.shade800,
                       minimumSize: const Size.fromHeight(50),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                     ),
                   ),
                   const SizedBox(height: 16),
-                   ElevatedButton(
+                  ElevatedButton(
                     onPressed: () async {
                       await _auth.signOut();
                       if (context.mounted) {
@@ -249,7 +276,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
                       backgroundColor: Colors.red,
                       foregroundColor: Colors.white,
                       minimumSize: const Size.fromHeight(50),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                     ),
                     child: const Text("Log Out"),
                   ),

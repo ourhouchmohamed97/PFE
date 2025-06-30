@@ -23,35 +23,32 @@ class _VehicleInfoPageState extends State<VehicleInfoPage> {
     _fetchAssignedVehicle();
   }
 
-  Future<void> _fetchAssignedVehicle() async {
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
+ Future<void> _fetchAssignedVehicle() async {
+  try {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
 
-      final userDoc = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .get();
-      final vehicleId = userDoc.data()?['vehicleId'];
-      if (vehicleId == null) return;
+    final querySnapshot = await FirebaseFirestore.instance
+        .collection('vehicles')
+        .where('assignedDriverId', isEqualTo: user.uid)
+        .limit(1)
+        .get();
 
-      final vehicleDoc = await FirebaseFirestore.instance
-          .collection('vehicles')
-          .doc(vehicleId)
-          .get();
-      if (vehicleDoc.exists) {
-        setState(() {
-          _vehicle = Vehicle.fromMap(vehicleDoc.data()!);
-          _isLoading = false;
-        });
-      } else {
-        setState(() => _isLoading = false);
-      }
-    } catch (e) {
-      debugPrint("Error loading vehicle: $e");
+    if (querySnapshot.docs.isNotEmpty) {
+      final vehicleDoc = querySnapshot.docs.first;
+      setState(() {
+        _vehicle = Vehicle.fromMap(vehicleDoc.data());
+        _isLoading = false;
+      });
+    } else {
+      debugPrint('No vehicle assigned to this driver.');
       setState(() => _isLoading = false);
     }
+  } catch (e) {
+    debugPrint("Error loading vehicle: $e");
+    setState(() => _isLoading = false);
   }
+}
 
   Future<void> _sendAlertToAdmin(String alertType) async {
     try {

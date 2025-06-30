@@ -57,3 +57,10 @@ dico_8digits.txt
 *.jar
 # Ignore BFG cleanup reports
 /..bfg-report/
+
+# Ignore Android specific files for google maps api
+C:\PFE\bus_tracker\android\app\src\main\AndroidManifest.xml
+
+# Ignore rapid api files
+C:\PFE\bus_tracker\lib\rapidapi_file.dart
+

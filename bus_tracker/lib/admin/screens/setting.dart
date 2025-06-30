@@ -1,5 +1,8 @@
+import 'package:bus_tracker/admin/screens/about_us.dart';
 import 'package:bus_tracker/admin/screens/add_pyment.dart';
+import 'package:bus_tracker/admin/screens/privacy_policy.dart';
 import 'package:bus_tracker/admin/screens/subscrib_plan.dart';
+import 'package:bus_tracker/admin/screens/term_condition.dart';
 import 'package:bus_tracker/driver/driver_home.dart';
 import 'package:bus_tracker/driver/vehicleinfo.dart';
 import 'package:bus_tracker/shared/pages/d_login_Page.dart';
@@ -199,9 +202,34 @@ class _SettingsPageState extends State<SettingsPage> {
                 ),
                 const SizedBox(height: 8),
 
-                _buildListTile('About us'),
-                _buildListTile('Privacy policy'),
-                _buildListTile('Terms and conditions'),
+                _buildListTile(
+                  'About us',
+                   onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const  AboutUsPage()),
+                    );
+                  },),
+       
+                _buildListTile(
+                  'Privacy policy',
+                   onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const  PrivacyPolicyPage()),
+                    );
+                  },),
+               _buildListTile(
+                  'Privacy policy',
+                   onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (context) => const  TermsConditionsPage()),
+                    );
+                  },),
 
                 const SizedBox(height: 20),
                 ElevatedButton.icon(

@@ -1,5 +1,6 @@
 import 'package:bus_tracker/core/models/vehicule_model.dart';
 import 'package:bus_tracker/core/widgets/assign_driver_dropdown.dart';
+import 'package:bus_tracker/rapidapi_file.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -24,7 +25,6 @@ class _AddCarPageState extends State<AddCarPage> {
   final currentYear = DateTime.now().year;
   List<String> uploadedPhotos = [];
   final TextEditingController _modelController = TextEditingController();
-  final TextEditingController _matriculeController = TextEditingController();
   final TextEditingController _brandController = TextEditingController();
   String? companyId;
   final TextEditingController _numberController = TextEditingController();
@@ -51,274 +51,198 @@ class _AddCarPageState extends State<AddCarPage> {
     super.dispose();
   }
 
-
   // Save car data
-Future<void> _saveCar() async {
-  if (!_formKey.currentState!.validate()) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill in all fields')),
-      );
+  Future<void> _saveCar() async {
+    if (!_formKey.currentState!.validate()) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please fill in all fields')),
+        );
+      }
+      return;
     }
-    return;
-  }
 
-  final user = FirebaseAuth.instance.currentUser;
-  if (user == null) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('You must be logged in to add a car')),
-      );
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('You must be logged in to add a car')),
+        );
+      }
+      return;
     }
-    return;
-  }
 
-  final vehicleRef = FirebaseFirestore.instance
-      .collection('vehicles') // 🔁 Now saving in top-level
-      .doc();
+    final vehicleRef = FirebaseFirestore.instance
+        .collection('vehicles') // 🔁 Now saving in top-level
+        .doc();
 
-  final vehicleId = vehicleRef.id;
+    final vehicleId = vehicleRef.id;
 
-  final assignedDriverId = _assignedDriverIdController.text.trim();
-  if (_selectedBrand == null || _selectedType == null || _selectedYear == null) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Please select brand, type, and year')),
+    final assignedDriverId = _assignedDriverIdController.text.trim();
+    if (_selectedBrand == null ||
+        _selectedType == null ||
+        _selectedYear == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select brand, type, and year')),
+      );
+      return;
+    }
+
+    final vehicle = Vehicle(
+      vid: vehicleId,
+      companyId: companyId!,
+      brand: _selectedBrand!,
+      model: _modelController.text.trim(),
+      type: _selectedType!,
+      year: _selectedYear!,
+      matricule: fullMatricule,
+      createdAt: DateTime.now(),
+      photosURL: uploadedPhotos,
+      assignedDriverId: assignedDriverId.isNotEmpty ? assignedDriverId : null,
+      location: {
+        'latitude': 0.0,
+        'longitude': 0.0,
+        'timestamp': DateTime.now().toIso8601String(),
+      },
     );
-    return;
+
+    try {
+      await vehicleRef.set(vehicle.toMap()); // Save to top-level
+      if (!mounted) return;
+
+      showCustomSnackBar(context, 'Car saved successfully!');
+
+      Navigator.pop(context);
+    } catch (e) {
+      if (!mounted) return;
+      showCustomSnackBar(context, 'Error saving car: $e', isError: true);
+    }
   }
 
+  void showCustomSnackBar(BuildContext context, String message,
+      {bool isError = false}) {
+    final color = isError ? Colors.red[600] : Colors.green[600];
+    final icon = isError ? Icons.error_outline : Icons.check_circle_outline;
 
-
-  final vehicle = Vehicle(
-    vid: vehicleId,
-    companyId: companyId!, 
-    brand: _selectedBrand!,
-    model: _modelController.text.trim(),
-    type: _selectedType!,
-    year: _selectedYear!,
-    matricule: fullMatricule,
-    createdAt: DateTime.now(),
-    photosURL: uploadedPhotos,
-    assignedDriverId: assignedDriverId.isNotEmpty ? assignedDriverId : null,
-    location: {
-      'latitude': 0.0,
-      'longitude': 0.0,
-      'timestamp': DateTime.now().toIso8601String(),
-    },
-  );
-
-  try {
-    await vehicleRef.set(vehicle.toMap()); // Save to top-level
-    if (!mounted) return;
-
-   showCustomSnackBar(context, 'Car saved successfully!');
-    
-
-    Navigator.pop(context);
-  } catch (e) {
-    if (!mounted) return;
-    showCustomSnackBar(context, 'Error saving car: $e', isError: true);
-  }
-}
-void showCustomSnackBar(BuildContext context, String message, {bool isError = false}) {
-  final color = isError ? Colors.red[600] : Colors.green[600];
-  final icon = isError ? Icons.error_outline : Icons.check_circle_outline;
-
-  final snackBar = SnackBar(
-    behavior: SnackBarBehavior.floating,
-    backgroundColor: Colors.transparent,
-    elevation: 0,
-    content: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.white),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              message,
-              style: const TextStyle(color: Colors.white, fontSize: 16),
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
+    final snackBar = SnackBar(
+      behavior: SnackBarBehavior.floating,
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      content: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: Colors.white),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                message,
+                style: const TextStyle(color: Colors.white, fontSize: 16),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-    duration: const Duration(seconds: 3),
-  );
+      duration: const Duration(seconds: 3),
+    );
 
-  ScaffoldMessenger.of(context).showSnackBar(snackBar);
-}
+    ScaffoldMessenger.of(context).showSnackBar(snackBar);
+  }
 
   String get fullMatricule =>
       '${_numberController.text}-${_arabicLetterController.text}-${_provinceController.text}';
   // Pick and upload photo to Firebase Storage (optional)
-Future<String?> pickAndUploadCarPhoto(String vehicleId) async {
-  try {
-    final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
-    if (pickedFile == null) return null;
+  Future<String?> pickAndUploadCarPhoto(String vehicleId) async {
+    try {
+      final picker = ImagePicker();
+      final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+      if (pickedFile == null) return null;
 
-    final Uint8List fileBytes = await pickedFile.readAsBytes();
+      final Uint8List fileBytes = await pickedFile.readAsBytes();
 
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return null;
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) return null;
 
-    final fileName = '${vehicleId}_${const Uuid().v4()}.jpg';
-    final filePath = 'vehicle-images/${user.uid}/$fileName';
+      final fileName = '${vehicleId}_${const Uuid().v4()}.jpg';
+      final filePath = 'vehicle-images/${user.uid}/$fileName';
 
-    final storageRef = FirebaseStorage.instance.ref().child(filePath);
+      final storageRef = FirebaseStorage.instance.ref().child(filePath);
 
-    await storageRef.putData(
-      fileBytes,
-      SettableMetadata(contentType: 'image/jpeg'),
-    );
+      await storageRef.putData(
+        fileBytes,
+        SettableMetadata(contentType: 'image/jpeg'),
+      );
 
-    return filePath; // ⬅️ Return the Storage path, not the URL
-  } catch (e) {
-    return null;
+      return filePath; // ⬅️ Return the Storage path, not the URL
+    } catch (e) {
+      return null;
+    }
   }
-}
   // Fetch car brand suggestions from API
 
-  Future<List<String>> fetchBrandSuggestions(String query) async {
-    final uri = Uri.https(
-      'car-api2.p.rapidapi.com',
-      '/api/makes',
-      {
-        'sort': 'id',
-        'direction': 'asc',
-        'verbose': 'yes',
-      },
-    );
+
+
+  Future<void> loadCompanyId() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      // User is not logged in — show message and maybe redirect to login page
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('You must be logged in to add a car.')),
+        );
+      }
+      return;
+    }
 
     try {
-      final response = await http.get(
-        uri,
-        headers: {
-          'X-RapidAPI-Key':
-              '2cdc31e33fmsh484d3a30022930ap1bde81jsn9d05d1360cc1',
-          'X-RapidAPI-Host': 'car-api2.p.rapidapi.com',
-        },
-      );
+      final adminDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        // Assuming the API returns a list of brands in a field called 'data'
-        if (data is Map && data['data'] is List) {
-          final List<dynamic> brands = data['data'];
-          // Filter by query and return brand names as strings
-          return brands
-              .map((brand) => brand['name']?.toString() ?? '')
-              .where((name) => name.toLowerCase().contains(query.toLowerCase()))
-              .toList();
+      if (!adminDoc.exists) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Admin data not found.')),
+          );
         }
-        return [];
-      } else {
-        return [];
+        return;
       }
-    } catch (e) {
-      return [];
-    }
-  }
 
-  Future<List<String>> fetchModelSuggestions(String brand, String query) async {
-    final uri = Uri.https(
-      'car-api2.p.rapidapi.com',
-      '/api/models',
-      {
-        'make': brand.toLowerCase(),
-        'sort': 'id',
-        'direction': 'asc',
-        'year': '2020',
-        'verbose': 'yes',
-      },
-    );
-
-    try {
-      final response = await http.get(
-        uri,
-        headers: {
-          'X-RapidAPI-Key':
-              '2cdc31e33fmsh484d3a30022930ap1bde81jsn9d05d1360cc1', // replace with your actual key
-          'X-RapidAPI-Host': 'car-api2.p.rapidapi.com',
-        },
-      );
-
-      if (response.statusCode == 200) {
-        final decoded = jsonDecode(response.body);
-        final List<dynamic> models = decoded['data'];
-        return models
-            .map((model) => model['name'].toString())
-            .where((name) => name.toLowerCase().contains(query.toLowerCase()))
-            .toList();
-      } else {
-        return [];
+      final data = adminDoc.data();
+      if (data == null || data['companyId'] == null) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Company ID not found.')),
+          );
+        }
+        return;
       }
+
+      setState(() {
+        companyId = data['companyId'] as String;
+      });
     } catch (e) {
-      return [];
-    }
-  }
-   
-   Future<void> loadCompanyId() async {
-  final user = FirebaseAuth.instance.currentUser;
-  if (user == null) {
-    // User is not logged in — show message and maybe redirect to login page
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('You must be logged in to add a car.')),
-      );
-    }
-    return;
-  }
-
-  try {
-    final adminDoc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .get();
-
-    if (!adminDoc.exists) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Admin data not found.')),
+          SnackBar(content: Text('Failed to load company ID: $e')),
         );
       }
-      return;
-    }
-
-    final data = adminDoc.data();
-    if (data == null || data['companyId'] == null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Company ID not found.')),
-        );
-      }
-      return;
-    }
-
-    setState(() {
-      companyId = data['companyId'] as String;
-    });
-  } catch (e) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to load company ID: $e')),
-      );
     }
   }
-}
 
-   @override
+  @override
   void initState() {
     super.initState();
     loadCompanyId();
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -374,23 +298,36 @@ Future<String?> pickAndUploadCarPhoto(String vehicleId) async {
                             style: TextStyle(
                                 fontSize: 18, fontWeight: FontWeight.bold),
                           ),
-                         
+
                           const SizedBox(height: 10),
 
                           // Brand with TypeAhead
                           TypeAheadFormField<String>(
                             textFieldConfiguration: TextFieldConfiguration(
                               controller: _brandController,
-                              decoration: const InputDecoration(
-                                labelText: 'Car Brand',
-                                border: OutlineInputBorder(),
+                              decoration: InputDecoration(
+                                label: RichText(
+                                  text: TextSpan(
+                                    text: 'Car Brand ',
+                                    style: TextStyle(
+                                      color:
+                                          Colors.grey[700], // Match label style
+                                      fontSize: 16,
+                                    ),
+                                    children: const [
+                                      TextSpan(
+                                        text: '*',
+                                        style: TextStyle(color: Colors.red),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                border: const OutlineInputBorder(),
                               ),
                               onChanged: (value) {
                                 setState(() {
-                                  _selectedBrand = value;
-                                  // When brand changes manually, you may want to clear selected model & controller
-                                  _modelController.clear();
                                   _selectedBrand = null;
+                                  _modelController.clear();
                                 });
                               },
                             ),
@@ -404,8 +341,6 @@ Future<String?> pickAndUploadCarPhoto(String vehicleId) async {
                               _brandController.text = suggestion;
                               setState(() {
                                 _selectedBrand = suggestion;
-                                // Clear the model field when a new brand is selected
-                                
                               });
                             },
                             validator: (value) =>
@@ -424,15 +359,29 @@ Future<String?> pickAndUploadCarPhoto(String vehicleId) async {
                           TypeAheadFormField<String>(
                             textFieldConfiguration: TextFieldConfiguration(
                               controller: _modelController,
-                              decoration: const InputDecoration(
-                                labelText: 'Car Model',
+                              decoration: InputDecoration(
+                                label: RichText(
+                                  text: TextSpan(
+                                    text: 'Car Model ',
+                                    style: TextStyle(
+                                      color: Colors.grey[700],
+                                      fontSize: 16,
+                                    ),
+                                    children: const [
+                                      TextSpan(
+                                        text: '*',
+                                        style: TextStyle(color: Colors.red),
+                                      ),
+                                    ],
+                                  ),
+                                ),
                                 hintText: 'e.g., C-Class, Corolla',
-                                border: OutlineInputBorder(),
-                                errorBorder: OutlineInputBorder(
+                                border: const OutlineInputBorder(),
+                                errorBorder: const OutlineInputBorder(
                                   borderSide:
                                       BorderSide(color: Colors.red, width: 2),
                                 ),
-                                focusedErrorBorder: OutlineInputBorder(
+                                focusedErrorBorder: const OutlineInputBorder(
                                   borderSide:
                                       BorderSide(color: Colors.red, width: 2),
                                 ),
@@ -441,7 +390,6 @@ Future<String?> pickAndUploadCarPhoto(String vehicleId) async {
                             suggestionsCallback: (pattern) async {
                               if (_selectedBrand == null ||
                                   _selectedBrand!.isEmpty) {
-                                // No brand selected, no suggestions
                                 return [];
                               }
                               return await fetchModelSuggestions(
@@ -473,11 +421,24 @@ Future<String?> pickAndUploadCarPhoto(String vehicleId) async {
                           // Type Dropdown
                           DropdownButtonFormField<String>(
                             value: _selectedType,
-                            decoration: const InputDecoration(
-                              labelText: 'Car Type',
-                              labelStyle: TextStyle(color: Colors.black54),
-                              border: OutlineInputBorder(),
-                              errorBorder: OutlineInputBorder(
+                            decoration: InputDecoration(
+                              label: RichText(
+                                text: const TextSpan(
+                                  text: 'Car Type ',
+                                  style: TextStyle(
+                                    color: Colors.black54,
+                                    fontSize: 16,
+                                  ),
+                                  children: [
+                                    TextSpan(
+                                      text: '*',
+                                      style: TextStyle(color: Colors.red),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              border: const OutlineInputBorder(),
+                              errorBorder: const OutlineInputBorder(
                                 borderSide:
                                     BorderSide(color: Colors.red, width: 2),
                               ),
@@ -500,11 +461,24 @@ Future<String?> pickAndUploadCarPhoto(String vehicleId) async {
                           // Year Dropdown
                           DropdownButtonFormField<int>(
                             value: _selectedYear,
-                            decoration: const InputDecoration(
-                              labelText: 'Year',
-                              labelStyle: TextStyle(color: Colors.black54),
-                              border: OutlineInputBorder(),
-                              errorBorder: OutlineInputBorder(
+                            decoration: InputDecoration(
+                              label: RichText(
+                                text: const TextSpan(
+                                  text: 'Year ',
+                                  style: TextStyle(
+                                    color: Colors.black54,
+                                    fontSize: 16,
+                                  ),
+                                  children: [
+                                    TextSpan(
+                                      text: '*',
+                                      style: TextStyle(color: Colors.red),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              border: const OutlineInputBorder(),
+                              errorBorder: const OutlineInputBorder(
                                 borderSide:
                                     BorderSide(color: Colors.red, width: 2),
                               ),
@@ -526,8 +500,8 @@ Future<String?> pickAndUploadCarPhoto(String vehicleId) async {
                             validator: (value) =>
                                 value == null ? 'Please select a year' : null,
                           ),
-                          const SizedBox(height: 8),
 
+                          const SizedBox(height: 8),
 
                           // Matricule TextField
                           Padding(
@@ -560,6 +534,10 @@ Future<String?> pickAndUploadCarPhoto(String vehicleId) async {
                                                 .digitsOnly,
                                             LengthLimitingTextInputFormatter(5),
                                           ],
+                                          validator: (value) =>
+                                              value == null || value.isEmpty
+                                                  ? 'Required'
+                                                  : null,
                                         ),
                                       ),
                                       const SizedBox(width: 8),
@@ -580,6 +558,10 @@ Future<String?> pickAndUploadCarPhoto(String vehicleId) async {
                                                 RegExp(r'[\u0621-\u064A]')),
                                             LengthLimitingTextInputFormatter(1),
                                           ],
+                                          validator: (value) =>
+                                              value == null || value.isEmpty
+                                                  ? 'Required'
+                                                  : null,
                                         ),
                                       ),
                                       const SizedBox(width: 8),
@@ -600,13 +582,17 @@ Future<String?> pickAndUploadCarPhoto(String vehicleId) async {
                                                 .digitsOnly,
                                             LengthLimitingTextInputFormatter(2),
                                           ],
+                                          validator: (value) =>
+                                              value == null || value.isEmpty
+                                                  ? 'Required'
+                                                  : null,
                                         ),
                                       ),
                                     ],
                                   ),
                                 ),
 
-                                // This is the "Matricule" legend text
+                                // Updated "License Plate *" label
                                 Positioned(
                                   left: 16,
                                   top: 0,
@@ -614,11 +600,18 @@ Future<String?> pickAndUploadCarPhoto(String vehicleId) async {
                                     color: Colors.white,
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 8),
-                                    child: const Text(
-                                      'license plate',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        color: Colors.black54,
+                                    child: RichText(
+                                      text: const TextSpan(
+                                        text: 'License Plate ',
+                                        style: TextStyle(
+                                            fontSize: 14,
+                                            color: Colors.black54),
+                                        children: [
+                                          TextSpan(
+                                            text: '*',
+                                            style: TextStyle(color: Colors.red),
+                                          ),
+                                        ],
                                       ),
                                     ),
                                   ),
@@ -628,15 +621,14 @@ Future<String?> pickAndUploadCarPhoto(String vehicleId) async {
                           ),
 
                           const SizedBox(height: 8),
-                           
+
                           (companyId == null || companyId!.isEmpty)
                               ? const Center(child: CircularProgressIndicator())
                               : AssignDriverDropdown(
                                   companyId: companyId!,
                                   controller: _assignedDriverIdController,
                                 ),
-                                const SizedBox(height: 10),
-
+                          const SizedBox(height: 10),
 
                           // 🖼️ Car Photos Section
                           Container(
@@ -678,41 +670,53 @@ Future<String?> pickAndUploadCarPhoto(String vehicleId) async {
                                         const Text('Drag and drop photos here'),
                                         const SizedBox(height: 10),
                                         ElevatedButton(
-  onPressed: () async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('You must be logged in')),
-      );
-      return;
-    }
+                                          onPressed: () async {
+                                            final user = FirebaseAuth
+                                                .instance.currentUser;
+                                            if (user == null) {
+                                              if (!context.mounted) return;
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(
+                                                const SnackBar(
+                                                    content: Text(
+                                                        'You must be logged in')),
+                                              );
+                                              return;
+                                            }
 
-    // Generate a temporary vehicleId if not already assigned
-    final vehicleId = const Uuid().v4();
+                                            // Generate a temporary vehicleId if not already assigned
+                                            final vehicleId = const Uuid().v4();
 
-    // Upload and get the image storage path (not URL)
-    final imageStoragePath = await pickAndUploadCarPhoto(vehicleId);
+                                            // Upload and get the image storage path (not URL)
+                                            final imageStoragePath =
+                                                await pickAndUploadCarPhoto(
+                                                    vehicleId);
 
-    if (!context.mounted) return;
+                                            if (!context.mounted) return;
 
-    if (imageStoragePath != null) {
-      setState(() {
-        uploadedPhotos.add(imageStoragePath); // Store storage path (not URL)
-      });
+                                            if (imageStoragePath != null) {
+                                              setState(() {
+                                                uploadedPhotos.add(
+                                                    imageStoragePath); // Store storage path (not URL)
+                                              });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Image uploaded successfully!')),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Image upload failed')),
-      );
-    }
-  },
-  child: const Text('Upload Photo'),
-),
-
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(
+                                                const SnackBar(
+                                                    content: Text(
+                                                        'Image uploaded successfully!')),
+                                              );
+                                            } else {
+                                              ScaffoldMessenger.of(context)
+                                                  .showSnackBar(
+                                                const SnackBar(
+                                                    content: Text(
+                                                        'Image upload failed')),
+                                              );
+                                            }
+                                          },
+                                          child: const Text('Upload Photo'),
+                                        ),
                                       ],
                                     ),
                                   ),
@@ -721,7 +725,6 @@ Future<String?> pickAndUploadCarPhoto(String vehicleId) async {
                             ),
                           ),
                           const SizedBox(height: 8),
-
 
                           // ✅ Action Buttons Section
                           Container(

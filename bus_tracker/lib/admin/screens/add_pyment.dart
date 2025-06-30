@@ -6,54 +6,51 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:flutterwave_standard/flutterwave.dart';
 
-
 class AddPaymentMethodPage extends StatefulWidget {
   final String companyId;
-  AddPaymentMethodPage({Key? key, required this.companyId}) : super(key: key);
+  const AddPaymentMethodPage({Key? key, required this.companyId}) : super(key: key);
 
   @override
   State<AddPaymentMethodPage> createState() => _AddPaymentMethodPageState();
 }
 
 class _AddPaymentMethodPageState extends State<AddPaymentMethodPage> {
-   String? companyPlan;
+  String? companyPlan;
   bool isLoading = true;
   String selectedMethod = 'Visa';
   bool isDefault = false;
   bool useBillingAddress = true;
-  
+
   String? adminName;
   String? adminEmail;
   String? adminPhone;
 
   final _nameController = TextEditingController();
-  final _cardNumberController = TextEditingController();
-  final _expDateController = TextEditingController();
-  final _cvvController = TextEditingController();
+
   @override
   void initState() {
     super.initState();
     fetchCompanyPlan();
-     loadAdminInfo();
+    loadAdminInfo();
   }
-  
+
   Future<void> loadAdminInfo() async {
-  final user = FirebaseAuth.instance.currentUser;
-  if (user == null) return;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
 
-  final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+    final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
 
-  if (doc.exists && doc['role'] == 'admin') {
-    setState(() {
-      adminName = doc['name'];
-      adminEmail = doc['email'];
-      adminPhone = doc['phone']; // Optional
-    });
-  } else {
-    // Not an admin or doc doesn't exist
-    print("User is not an admin or document not found.");
+    if (doc.exists && doc['role'] == 'admin') {
+      setState(() {
+        adminName = doc['name'];
+        adminEmail = doc['email'];
+        adminPhone = doc['phone'];
+        _nameController.text = doc['name'] ?? '';
+      });
+    } else {
+      print("User is not an admin or document not found.");
+    }
   }
-}
 
   Future<void> fetchCompanyPlan() async {
     try {
@@ -64,11 +61,10 @@ class _AddPaymentMethodPageState extends State<AddPaymentMethodPage> {
 
       if (doc.exists) {
         setState(() {
-          companyPlan = doc.data()?['plan'] ?? "plus"; // default plan if missing
+          companyPlan = doc.data()?['plan'] ?? "plus";
           isLoading = false;
         });
       } else {
-        // Company doc not found
         setState(() {
           companyPlan = "plus";
           isLoading = false;
@@ -89,6 +85,45 @@ class _AddPaymentMethodPageState extends State<AddPaymentMethodPage> {
     if (companyPlan!.toLowerCase() == "pro") return "2000";
     return "0";
   }
+
+  Future<void> _makePayment() async {
+    if (_nameController.text.isEmpty || adminEmail == null || adminPhone == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please fill in your name, email, and phone.")),
+      );
+      return;
+    }
+
+    final flutterwave = Flutterwave(
+      publicKey: "FLWPUBK_TEST-055b5e0bc0b3c0510776fb3b1e58e2bb-X",
+      currency: "MAD",
+      redirectUrl: "https://flutterwave.com",
+      txRef: "TX-${DateTime.now().millisecondsSinceEpoch}",
+      amount: getAmountBasedOnPlan(),
+      customer: Customer(
+        name: _nameController.text,
+        phoneNumber: adminPhone!,
+        email: adminEmail!,
+      ),
+      paymentOptions: "card, paypal",
+      customization: Customization(title: "HayMobility Payment"),
+      isTestMode: true,
+    );
+
+    final response = await flutterwave.charge(context);
+
+    if (response.status == "successful") {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("✅ Payment successful!")),
+      );
+      Navigator.pop(context);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("❌ Payment failed or cancelled.")),
+      );
+    }
+  }
+
   Widget _buildCardTypeButton(String label, Widget icon, String method) {
     bool isSelected = selectedMethod == method;
     return Expanded(
@@ -129,54 +164,12 @@ class _AddPaymentMethodPageState extends State<AddPaymentMethodPage> {
     );
   }
 
- Future<void> _makePayment() async {
-  if (_nameController.text.isEmpty ||
-      _cardNumberController.text.isEmpty ||
-      _expDateController.text.isEmpty ||
-      _cvvController.text.isEmpty) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Please fill all fields.")),
-    );
-    return;
-  }
-
-  final flutterwave = Flutterwave(
-    
-    publicKey: "FLWPUBK_TEST-055b5e0bc0b3c0510776fb3b1e58e2bb-X",
-    currency: "MAD",
-    redirectUrl: "https://flutterwave.com",
-    txRef: "TX-${DateTime.now().millisecondsSinceEpoch}",
-    amount: getAmountBasedOnPlan(),
-    customer: Customer(
-      name: adminName,
-      phoneNumber: adminPhone,
-      email: adminEmail ?? "ezzahirhaytham@gmail.com",
-    ),
-    paymentOptions: "card, paypal",
-    customization: Customization(title: "HayMobility Payment"),
-    isTestMode: true,
-  );
-
-  final response = await flutterwave.charge(context);
-
-  if (response.status == "successful") {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("✅ Payment successful!")),
-    );
-    Navigator.pop(context);
-  } else {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("❌ Payment failed or cancelled.")),
-    );
-  }
-}
-
-
   @override
   Widget build(BuildContext context) {
     if (isLoading) {
-    return const Center(child: CircularProgressIndicator());
-  }
+      return const Center(child: CircularProgressIndicator());
+    }
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -196,7 +189,8 @@ class _AddPaymentMethodPageState extends State<AddPaymentMethodPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const SizedBox(height: 30),
-            Text("Select Card Type", style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600)),
+            Text("Select Payment Method",
+                style: GoogleFonts.poppins(fontSize: 16, fontWeight: FontWeight.w600)),
             const SizedBox(height: 30),
             Row(
               children: [
@@ -210,47 +204,19 @@ class _AddPaymentMethodPageState extends State<AddPaymentMethodPage> {
             const SizedBox(height: 40),
             TextField(
               controller: _nameController,
-              decoration: _inputDecoration("John M. Doe", Icons.person_outline),
+              decoration: _inputDecoration("Full Name", Icons.person_outline),
             ),
             const SizedBox(height: 20),
             TextField(
-              controller: _cardNumberController,
-              decoration: _inputDecoration("XXXX XXXX XXXX XXXX", Icons.credit_card),
-              keyboardType: TextInputType.number,
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(19),
-              ],
+              controller: TextEditingController(text: adminEmail),
+              decoration: _inputDecoration("Email", Icons.email_outlined),
+              readOnly: true,
             ),
             const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _expDateController,
-                    decoration: _inputDecoration("MM/YY", Icons.date_range),
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                      LengthLimitingTextInputFormatter(5),
-                      ExpiryDateFormatter(),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: TextField(
-                    controller: _cvvController,
-                    decoration: _inputDecoration("***", Icons.lock_outline),
-                    keyboardType: TextInputType.number,
-                    obscureText: true,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                      LengthLimitingTextInputFormatter(4),
-                    ],
-                  ),
-                ),
-              ],
+            TextField(
+              controller: TextEditingController(text: adminPhone),
+              decoration: _inputDecoration("Phone", Icons.phone_outlined),
+              readOnly: true,
             ),
             const SizedBox(height: 30),
             CheckboxListTile(
@@ -280,26 +246,6 @@ class _AddPaymentMethodPageState extends State<AddPaymentMethodPage> {
           ],
         ),
       ),
-    );
-  }
-}
-
-class ExpiryDateFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(TextEditingValue oldValue, TextEditingValue newValue) {
-    String text = newValue.text.replaceAll('/', '');
-
-    if (text.length >= 3) {
-      text = '${text.substring(0, 2)}/${text.substring(2)}';
-    }
-
-    if (text.length > 5) {
-      text = text.substring(0, 5);
-    }
-
-    return TextEditingValue(
-      text: text,
-      selection: TextSelection.collapsed(offset: text.length),
     );
   }
 }
