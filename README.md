@@ -1,6 +1,6 @@
-# 🚗 HayMobility — Smart Car Rental & Tracking App
+# 🚗 HayMobility — Smart Car Tracking App
 
-> Your all-in-one solution for managing, renting, and tracking vehicles in real-time using Flutter & Firebase.
+> Your all-in-one solution for managing, and tracking vehicles in real-time using Flutter & Firebase.
 
 ---
 
@@ -20,7 +20,7 @@
 
 | Home Page | Active Vehicles | setting Page |
 |-----------|-----------------|--------------|
-| ![home](https://i.postimg.cc/PqMgHnM6/welcome.png) | ![map](https://i.postimg.cc/Xq61B2xZ/Map.png) | ![setting](https://i.postimg.cc/rsSpjJCz/settings.png) |
+| ![home](https://i.postimg.cc/PqMgHnM6/welcome.png) | ![map](https://i.postimg.cc/nrjpb3gN/Screen-Shot-2025-07-06-at-6-52-13-PM.png) | ![setting](https://i.postimg.cc/6qvJ1yGX/Screen-Shot-2025-07-06-at-6-53-37-PM.png) |
 
 ---
 
@@ -34,17 +34,19 @@
 - **Google Maps API** — Real-time location tracking
 - **Geolocator** — GPS & permissions
 - **Provider / Riverpod** — State Management
-- **Figma / Visily** — UI/UX Design
+- **Figma** — UI/UX Design
 
 ---
 
 ## 🏗️ Architecture
 
 - **Modular Structure**
-  - `/screens/` — Pages like login, home, profile, etc.
-  - `/models/` — Dart classes for Vehicles & Users
-  - `/services/` — Firebase logic (auth, db, location)
-  - `/widgets/` — Reusable UI components
+  - `/admin/screens/` → Admin-specific screens (e.g., Login, Home, Profile)
+  - `/core/` → Core logic and services (e.g., Authentication, Utilities)
+  - `/driver/` → Driver-specific screens (e.g., Vehicle Info, Driver Home)
+  - `/routes/` → Centralized routing for pages (e.g., /login, /home, /profile)
+  - `/shared/pages/` → Shared screens used by both Admin and Driver modules
+  - `/main` → App entry point and main configuration
 - **Clean Code & Separation of Concerns**
 
 ---
@@ -53,6 +55,6 @@
 
 1. **Clone the repo**
    ```bash
-   git clone https://github.com/yourusername/HayMobility.git
+   git clone https://github.com/ourhouchmohamed97/PFE.git HayMobility
    cd HayMobility
    flutter run
